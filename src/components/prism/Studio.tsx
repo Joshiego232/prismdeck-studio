@@ -143,12 +143,21 @@ export default function Studio({ slideIndex, step, print, presenterMode = false,
         return;
       }
       if (cmd && e.key.toLowerCase() === "s") { e.preventDefault(); safeSave(); }
-      if (cmd && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? state.redo() : state.undo(); }
+      if (cmd && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) state.redo(); else state.undo();
+      }
       if (cmd && e.key.toLowerCase() === "y") { e.preventDefault(); state.redo(); }
       if (cmd && e.key.toLowerCase() === "c") state.copySelected();
       if (cmd && e.key.toLowerCase() === "v") { e.preventDefault(); state.paste(); }
-      if (cmd && e.key.toLowerCase() === "d") { e.preventDefault(); state.selectedElementIds.length ? state.duplicateSelected() : state.duplicateSlides(); }
-      if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); state.selectedElementIds.length ? state.deleteSelected() : state.deleteSlides(); }
+      if (cmd && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        if (state.selectedElementIds.length) state.duplicateSelected(); else state.duplicateSlides();
+      }
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        if (state.selectedElementIds.length) state.deleteSelected(); else state.deleteSlides();
+      }
       if (e.key.toLowerCase() === "g" && !cmd) setGrid(g => !g);
       if (e.key.startsWith("Arrow")) {
         e.preventDefault();
