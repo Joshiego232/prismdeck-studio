@@ -12,7 +12,7 @@ export const TRANSITIONS: TransitionPreset[] = [
   { id: "split", label: "Split" }, { id: "reveal", label: "Reveal", directional: true },
   { id: "zoom", label: "Zoom" }, { id: "flip", label: "Flip", directional: true },
   { id: "cube", label: "Cube turn", directional: true }, { id: "gallery", label: "Gallery", directional: true },
-  { id: "morph", label: "Smooth move" }, { id: "blur", label: "Blur" }, { id: "curtain", label: "Curtain" },
+  { id: "morph", label: "Morph" }, { id: "blur", label: "Blur" }, { id: "curtain", label: "Curtain" },
   { id: "spin", label: "Spin" }, { id: "glitch", label: "Glitch" }, { id: "slide", label: "Cover", directional: true },
 ];
 

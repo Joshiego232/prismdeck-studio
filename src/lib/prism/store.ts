@@ -18,6 +18,7 @@ export interface DeckState {
   future: Deck[];
   lastCoalesce: { key: string; at: number } | null;
   currentSlideId: string;
+  slideSelectionAnchorId: string;
   selectedSlideIds: string[];
   selectedElementIds: string[];
   editingTextId: string | null;
@@ -46,12 +47,31 @@ export interface DeckState {
   copySelected: () => void;
   paste: () => void;
   reorderElement: (id: string, where: "front" | "back" | "forward" | "backward" | number) => void;
+  groupElements: (ids?: string[]) => void;
+  ungroupElements: (ids?: string[]) => void;
 }
 
 export const currentSlide = (s: Pick<DeckState, "deck" | "currentSlideId">): Slide =>
   s.deck.slides.find((x) => x.id === s.currentSlideId) ?? s.deck.slides[0] ?? initialDeck().slides.find(() => true) as Slide;
 
 export const findSlide = (d: Draft<Deck> | Deck, id: string) => d.slides.find((s) => s.id === id);
+
+function cloneElementsWithGroups(elements: SlideElement[], offset = 30): SlideElement[] {
+  const groups = new Map<string, string>();
+  return elements.map((element) => {
+    const clone = cloneElement(element, offset);
+    if (clone.groupId) {
+      const originalGroupId = clone.groupId;
+      let nextGroupId = groups.get(originalGroupId);
+      if (!nextGroupId) {
+        nextGroupId = `g_${Math.random().toString(36).slice(2, 9)}`;
+        groups.set(originalGroupId, nextGroupId);
+      }
+      clone.groupId = nextGroupId;
+    }
+    return clone;
+  });
+}
 
 function initialDeck(): Deck {
   // Deterministic shell for SSR; the editor restores local content after mounting.
@@ -68,7 +88,7 @@ export const useDeck = create<DeckState>()((set, get) => {
 
   return {
     deck: d0, past: [], future: [], lastCoalesce: null,
-    currentSlideId: (d0.slides[0]?.id ?? "initial-slide"), selectedSlideIds: [(d0.slides[0]?.id ?? "initial-slide")],
+    currentSlideId: (d0.slides[0]?.id ?? "initial-slide"), slideSelectionAnchorId: (d0.slides[0]?.id ?? "initial-slide"), selectedSlideIds: [(d0.slides[0]?.id ?? "initial-slide")],
     selectedElementIds: [], editingTextId: null, clipboard: [], saveState: "saved",
 
     mutate: (fn, opts = {}) => set((st) => {
@@ -91,7 +111,7 @@ export const useDeck = create<DeckState>()((set, get) => {
       const nx = st.future[0]; if (!nx) return {};
       return fixSel({ ...st, deck: nx, past: [...st.past, st.deck], future: st.future.slice(1), saveState: "unsaved", lastCoalesce: null });
     }),
-    loadDeck: (d) => set({ deck: d, past: [], future: [], currentSlideId: (d.slides[0]?.id ?? "initial-slide"), selectedSlideIds: [(d.slides[0]?.id ?? "initial-slide")], selectedElementIds: [], editingTextId: null, saveState: "unsaved" }),
+    loadDeck: (d) => set({ deck: d, past: [], future: [], currentSlideId: (d.slides[0]?.id ?? "initial-slide"), slideSelectionAnchorId: (d.slides[0]?.id ?? "initial-slide"), selectedSlideIds: [(d.slides[0]?.id ?? "initial-slide")], selectedElementIds: [], editingTextId: null, saveState: "unsaved" }),
 
     selectSlide: (id, mode = "single") => set((st) => {
       if (mode === "toggle") {
@@ -101,10 +121,11 @@ export const useDeck = create<DeckState>()((set, get) => {
       }
       if (mode === "range") {
         const ids = st.deck.slides.map((s) => s.id);
-        const a = ids.indexOf(st.currentSlideId), b = ids.indexOf(id);
-        return { selectedSlideIds: ids.slice(Math.min(a, b), Math.max(a, b) + 1), selectedElementIds: [], editingTextId: null };
+        const anchor = st.slideSelectionAnchorId && ids.includes(st.slideSelectionAnchorId) ? st.slideSelectionAnchorId : st.currentSlideId;
+        const a = ids.indexOf(anchor), b = ids.indexOf(id);
+        return { currentSlideId: id, selectedSlideIds: ids.slice(Math.min(a, b), Math.max(a, b) + 1), selectedElementIds: [], editingTextId: null };
       }
-      return { currentSlideId: id, selectedSlideIds: [id], selectedElementIds: [], editingTextId: null };
+      return { currentSlideId: id, slideSelectionAnchorId: id, selectedSlideIds: [id], selectedElementIds: [], editingTextId: null };
     }),
     selectElements: (ids) => set((st) => ({ selectedElementIds: ids, editingTextId: ids.includes(st.editingTextId ?? "") ? st.editingTextId : null })),
     setEditingText: (id) => set({ editingTextId: id }),
@@ -179,7 +200,7 @@ export const useDeck = create<DeckState>()((set, get) => {
     },
     duplicateSelected: () => {
       const s = currentSlide(get());
-      const clones = s.elements.filter((e) => get().selectedElementIds.includes(e.id)).map((e) => cloneElement(e));
+      const clones = cloneElementsWithGroups(s.elements.filter((e) => get().selectedElementIds.includes(e.id)));
       if (!clones.length) return;
       get().mutate((d) => { findSlide(d, s.id)?.elements.push(...(clones as Draft<SlideElement>[])); });
       set({ selectedElementIds: clones.map((c) => c.id) });
@@ -189,9 +210,32 @@ export const useDeck = create<DeckState>()((set, get) => {
       set({ clipboard: s.elements.filter((e) => get().selectedElementIds.includes(e.id)).map((e) => structuredClone(e)) });
     },
     paste: () => {
-      const clones = get().clipboard.map((e) => cloneElement(e, 40)); if (!clones.length) return;
+      const clones = cloneElementsWithGroups(get().clipboard, 40); if (!clones.length) return;
       get().mutate((d) => { findSlide(d, get().currentSlideId)?.elements.push(...(clones as Draft<SlideElement>[])); });
       set({ selectedElementIds: clones.map((c) => c.id), clipboard: clones.map((c) => structuredClone(c)) });
+    },
+    groupElements: (ids) => {
+      const selected = ids ?? get().selectedElementIds;
+      if (selected.length < 2) return;
+      const groupId = `g_${Math.random().toString(36).slice(2, 10)}`;
+      get().mutate((d) => {
+        const s = findSlide(d, get().currentSlideId);
+        for (const el of s?.elements ?? []) if (selected.includes(el.id)) el.groupId = groupId;
+      });
+      set({ selectedElementIds: selected });
+    },
+    ungroupElements: (ids) => {
+      const state = get();
+      const selectedIds = ids ?? state.selectedElementIds;
+      const slide = currentSlide(state);
+      const groupIds = new Set(slide.elements.filter((el) => selectedIds.includes(el.id) && el.groupId).map((el) => el.groupId as string));
+      if (!groupIds.size) return;
+      const members = slide.elements.filter((el) => el.groupId && groupIds.has(el.groupId)).map((el) => el.id);
+      get().mutate((d) => {
+        const s = findSlide(d, state.currentSlideId);
+        for (const el of s?.elements ?? []) if (el.groupId && groupIds.has(el.groupId)) delete el.groupId;
+      });
+      set({ selectedElementIds: members });
     },
     reorderElement: (id, where) => get().mutate((d) => {
       const s = findSlide(d, get().currentSlideId); if (!s) return;
@@ -213,6 +257,7 @@ function fixSel(st: DeckState): Partial<DeckState> {
   return {
     deck: st.deck, past: st.past, future: st.future, saveState: st.saveState, lastCoalesce: null,
     currentSlideId: cur,
+    slideSelectionAnchorId: ids.includes(st.slideSelectionAnchorId) ? st.slideSelectionAnchorId : cur,
     selectedSlideIds: st.selectedSlideIds.filter((x) => ids.includes(x)).length ? st.selectedSlideIds.filter((x) => ids.includes(x)) : [cur],
     selectedElementIds: st.selectedElementIds.filter((x) => slide.elements.some((e) => e.id === x)),
   };
