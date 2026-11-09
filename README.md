@@ -4,20 +4,42 @@ PrismDeck Studio is a cross-platform presentation editor built with React, TypeS
 
 ## Development
 
-Requirements: Node.js 20+ and npm.
+Requirements: Node.js 20+ and Bun (the repository includes `bun.lock`).
 
 ```bash
-npm install
-npm run dev
+bun install --frozen-lockfile
+bun run dev
 ```
+
+Open the forwarded port shown by Codespaces to preview the app.
 
 ## Quality checks
 
 ```bash
-npm run lint
-npm test
-npm run build
+bun run lint
+bun run test
+bun run build
 ```
+
+GitHub Actions runs the same checks on pushes to `main` and feature branches, and on pull requests into `main`.
+
+## Keyboard shortcuts
+
+| Shortcut | Action |
+|---|---|
+| `F5` | Open the separate presenter window |
+| `Shift + G` | Group selected objects |
+| `Ctrl/Cmd + Shift + G` | Ungroup selected objects |
+| `Shift + K` | Add or edit a hyperlink on selected objects |
+| `Ctrl/Cmd + D` | Duplicate selected objects or slides |
+| `Ctrl/Cmd + C / V` | Copy and paste objects |
+| `Ctrl/Cmd + Z` | Undo |
+| `Ctrl/Cmd + Shift + Z` or `Ctrl/Cmd + Y` | Redo |
+| Arrow keys | Move selected objects or navigate slides |
+| `Shift + Arrow` | Move selected objects by a larger increment |
+| `Escape` | Exit presentation or clear selection |
+
+Right-click a slide thumbnail to add a slide after it, duplicate it, or delete it.
 
 ## Project structure
 
@@ -30,7 +52,7 @@ npm run build
 
 ## Current baseline
 
-This is the initial source transfer from the PrismDeck Studio Lovable project. It is a development baseline; individual features and build/test status still need independent verification.
+The app stores project documents in browser local storage and uploaded assets in IndexedDB. The separate presenter window uses BroadcastChannel to receive live deck changes from the editor window on the same browser origin. This is same-browser live sync, not cross-device cloud synchronization.
 
 ## License
 

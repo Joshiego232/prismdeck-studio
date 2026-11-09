@@ -4,7 +4,14 @@ export const DECK_SCHEMA_VERSION = 1;
 export type ElementType = "text" | "shape" | "image" | "video" | "audio" | "chart";
 export type ShapeKind =
   | "rect" | "roundRect" | "ellipse" | "triangle" | "diamond" | "star"
-  | "chevron" | "callout" | "line" | "arrow";
+  | "chevron" | "callout" | "line" | "arrow" | "pentagon" | "hexagon" | "octagon"
+  | "trapezoid" | "parallelogram" | "rightTriangle" | "plus" | "cross" | "heart" | "cloud";
+
+export const SHAPE_KINDS: ShapeKind[] = [
+  "rect", "roundRect", "ellipse", "triangle", "rightTriangle", "diamond", "pentagon",
+  "hexagon", "octagon", "trapezoid", "parallelogram", "star", "chevron", "callout",
+  "plus", "cross", "heart", "cloud", "line", "arrow",
+];
 
 export interface Effects {
   shadow: { on: boolean; x: number; y: number; blur: number; color: string };
@@ -21,6 +28,8 @@ interface BaseEl extends Effects {
   opacity: number;
   locked?: boolean;
   hidden?: boolean;
+  groupId?: string;
+  hyperlink?: string;
 }
 
 export interface TextProps {
