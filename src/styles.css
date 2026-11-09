@@ -359,3 +359,5 @@
 .thumbnail-duplicate:hover { opacity:1; color:var(--primary); }
 .thumbnail-duplicate svg { width:13px; height:13px; }
 
+
+.thumbnail { flex:1; min-width:0; }
