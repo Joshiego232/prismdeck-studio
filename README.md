@@ -52,6 +52,12 @@ Right-click a slide thumbnail to add a slide after it, duplicate it, or delete i
 - Save a group of two or more shapes using **Home → Arrange → Save as custom shape**, then insert it from **Insert → Custom library** on any slide. The library is local to the current browser profile and site origin, not cloud-synchronised.
 - In **Layers**, grouped objects appear under collapsible group rows. Shift-click adds items to the selection; Ctrl/Cmd-click toggles individual items.
 
+## Animation Mode
+
+Animation Mode is a separate full-screen workspace, independent of slide editing and presenting. It currently includes a frame timeline, playhead, playback controls, transform/joint keyframes, automatic inbetweens, five interpolation modes, object layers, an inspector, local project persistence, and SVG frame / native project export.
+
+The starter vector library includes 84 assets: 17 trees, 24 foliage assets, 14 city buildings, 17 original anime/superhero-inspired rigged characters, and 12 everyday human characters. Character assets use 13-joint rigs; environmental assets are layered vector illustrations. Named franchises are not bundled as official artwork; the hero designs are original archetypes.
+
 ## Project structure
 
 - `src/components/prism/` — presentation studio, slide canvas, and inspector

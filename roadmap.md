@@ -1,15 +1,34 @@
 # PrismDeck Studio
 
-- [x] Responsive presentation editor with slide navigation, editable objects, insertion, inspector, and ribbon.
-- [x] Transitions, object animation controls, and fullscreen keyboard/touch presenting.
+- [x] Responsive slide editor with insertion, inspector, ribbon and presentation mode.
 - [x] Remembered-position snapping guides.
 - [x] Reusable custom group-shape library with browser-local persistence.
 - [x] Clean group hierarchy in Layers and additive/toggle object selection.
-- [x] Preserve per-member fills and gradients when grouping differently styled shapes.
+- [x] Preserve individual fills and gradients when grouping differently styled shapes.
+- [x] Separate Animation Mode workspace with timeline, playback and auto-inbetweens.
+- [x] Transform and articulated character joint keyframes.
+- [x] Initial library of 84 layered vector assets (characters, trees, foliage, city buildings).
+- [x] Local animation project persistence and JSON / SVG export.
 
-## Still staged — awaiting explicit activation
+## Animation Mode — next development candidates
 
-- [ ] Pro stick-figure animation studio (rig, pose, keyframe, layer, and timeline model foundations only).
-- [ ] Church presentation / Bible verse insertion (provider and insertion contracts only; no translation source or UI).
+- [ ] Onion-skin previous/next frame ghosting.
+- [ ] Audio and voice timeline with waveform, scrubbing and sync markers.
+- [ ] Motion paths with editable Bezier handles.
+- [ ] Per-vector-part animation and parent/child rig hierarchies.
+- [ ] IK/FK switching, bone constraints, inverse kinematics and reusable rigs.
+- [ ] Shape morphing, mesh deformation and vector point animation.
+- [ ] Camera layers, pans, zooms, parallax and scene transitions.
+- [ ] Drawing tools, frame-by-frame cel animation and brush library.
+- [ ] Asset variants, recolouring, costume changes and character expression libraries.
+- [ ] MP4, WebM, GIF, sprite-sheet and PNG-sequence export.
+- [ ] Audio-reactive effects, lip sync and phoneme-based mouth animation.
+- [ ] Scene management, nested compositions and reusable animation clips.
+- [ ] Advanced curve editor, graph editor and timing charts.
+- [ ] Cloud project sync, asset packs and collaborative review.
 
-See `STAGED_FEATURES.md` for current activation and scope details.
+## Still staged
+
+- [ ] Church presentation / Bible verse insertion (awaiting requirements and a translation/licensing decision).
+
+See `STAGED_FEATURES.md` for the current implementation boundary.

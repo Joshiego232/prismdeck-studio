@@ -13,7 +13,7 @@ export type StagedFeature =
 export const FEATURE_FLAGS: Readonly<Record<StagedFeature, boolean>> = Object.freeze({
   rememberedPositionSnapping: true,
   customShapeLibrary: true,
-  stickFigureAnimationStudio: false,
+  stickFigureAnimationStudio: true,
   bibleVerseInserter: false,
 });
 
