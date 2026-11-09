@@ -112,7 +112,13 @@ function CustomShapePicker({ shapes, onInsert, onDelete }: {
   const toggle = () => {
     if (!open) {
       const rect = anchor.current?.getBoundingClientRect();
-      if (rect) setPosition({ top: Math.min(rect.bottom + 6, Math.max(12, window.innerHeight - 360)), left: Math.max(12, Math.min(rect.left, window.innerWidth - 350)) });
+      if (rect) {
+        const menuHeight = Math.min(390, Math.max(180, window.innerHeight - 24));
+        const menuWidth = Math.min(350, Math.max(220, window.innerWidth - 24));
+        const top = Math.min(rect.bottom + 6, Math.max(12, window.innerHeight - menuHeight - 12));
+        const left = Math.min(Math.max(12, rect.left), Math.max(12, window.innerWidth - menuWidth - 12));
+        setPosition({ top, left });
+      }
     }
     setOpen(value => !value);
   };
@@ -123,7 +129,7 @@ function CustomShapePicker({ shapes, onInsert, onDelete }: {
       </Button>
     </div>
     {open && typeof document !== "undefined" && createPortal(
-      <div ref={menu} className="custom-shape-menu" role="menu" style={{ top: position.top, left: position.left }}>
+      <div ref={menu} className="shape-picker-menu custom-shape-menu" role="menu" aria-label="Custom shape library" style={{ top: position.top, left: position.left }}>
         <div className="shape-picker-heading">Custom shape library</div>
         {shapes.length === 0 ? <p className="custom-shape-empty">No saved shapes yet. Group two or more shapes, then choose “Save as custom shape” from Home → Arrange.</p> : <div className="custom-shape-list">
           {shapes.map(shape => <div className="custom-shape-row" key={shape.id}>
