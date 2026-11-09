@@ -30,8 +30,8 @@ npm run build
 
 ## Current baseline
 
-This repository contains the initial source transfer from the PrismDeck Studio Lovable project. The code is a development baseline; individual features and build/test status still need independent verification.
+This is the initial source transfer from the PrismDeck Studio Lovable project. It is a development baseline; individual features and build/test status still need independent verification.
 
 ## License
 
-No license has been assigned yet. All rights remain with the project owner unless a license is added.
+No license has been assigned. All rights remain with the project owner unless a license is added.
