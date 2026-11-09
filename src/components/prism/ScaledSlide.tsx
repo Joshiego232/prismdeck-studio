@@ -154,6 +154,8 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
     state.snapshot();
 
     const startX = event.clientX, startY = event.clientY;
+    const visibleHostWidth = host.current?.getBoundingClientRect().width ?? 0;
+    const interactionScale = visibleHostWidth > 0 ? visibleHostWidth / deck.width : scale;
     const selectedIds = new Set(targetIds);
     const originals = slide.elements.filter(item => selectedIds.has(item.id));
     if (!originals.length) return;
@@ -166,11 +168,11 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
     const peers = slide.elements.filter(item => !selectedIds.has(item.id) && !item.hidden);
     const xTargets = [0, deck.width / 2, deck.width, ...peers.flatMap(item => [item.x, item.x + item.w / 2, item.x + item.w])];
     const yTargets = [0, deck.height / 2, deck.height, ...peers.flatMap(item => [item.y, item.y + item.h / 2, item.y + item.h])];
-    const threshold = 8 / Math.max(scale, 0.1);
+    const threshold = 8 / Math.max(interactionScale, 0.1);
 
     const move = (ev: globalThis.PointerEvent) => {
-      const rawDx = (ev.clientX - startX) / scale;
-      const rawDy = (ev.clientY - startY) / scale;
+      const rawDx = (ev.clientX - startX) / interactionScale;
+      const rawDy = (ev.clientY - startY) / interactionScale;
 
       if (mode === "move") {
         const xSnap = findAxisSnap(
