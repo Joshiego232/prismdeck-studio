@@ -1,7 +1,7 @@
 /**
  * Central activation switches for staged PrismDeck capabilities.
  *
- * Keep these false until the product owner explicitly authorizes activation.
+ * Features are activated only when the product owner explicitly authorizes them.
  * A feature with a false flag must not expose UI, routes, menus, or insertion actions.
  */
 export type StagedFeature =
@@ -11,8 +11,8 @@ export type StagedFeature =
   | "bibleVerseInserter";
 
 export const FEATURE_FLAGS: Readonly<Record<StagedFeature, boolean>> = Object.freeze({
-  rememberedPositionSnapping: false,
-  customShapeLibrary: false,
+  rememberedPositionSnapping: true,
+  customShapeLibrary: true,
   stickFigureAnimationStudio: false,
   bibleVerseInserter: false,
 });

@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { AlignCenter, AlignLeft, AlignRight, Bold, Italic, Underline, Layers, ChevronUp, ChevronDown, Trash2, Copy, Eye, Lock, Plus } from "lucide-react";
+import { useState, type MouseEvent, type ReactNode } from "react";
+import { AlignCenter, AlignLeft, AlignRight, Bold, Italic, Underline, Layers, ChevronUp, ChevronDown, ChevronRight, Trash2, Copy, Eye, Lock, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDeck, currentSlide, findSlide } from "@/lib/prism/store";
 import { FONT_CATALOGUE, loadWebFont } from "@/lib/prism/fonts";
@@ -54,6 +54,24 @@ export function AnimationControls({ slide, el }: { slide: Slide; el?: SlideEleme
 
 export function Inspector({ mode, onMode }: { mode: string; onMode: (s: string) => void }) {
   const st = useDeck(), slide = currentSlide(st);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
+  const layerRows: Array<{ kind: "group"; groupId: string; members: SlideElement[] } | { kind: "element"; element: SlideElement }> = [];
+  const seenGroupIds = new Set<string>();
+  for (const element of [...slide.elements].reverse()) {
+    if (!element.groupId) { layerRows.push({ kind: "element", element }); continue; }
+    if (seenGroupIds.has(element.groupId)) continue;
+    seenGroupIds.add(element.groupId);
+    layerRows.push({ kind: "group", groupId: element.groupId, members: [...slide.elements].reverse().filter(member => member.groupId === element.groupId) });
+  }
+  const selectLayerElements = (event: MouseEvent<HTMLButtonElement>, ids: string[]) => {
+    const mode = event.shiftKey ? "add" : event.metaKey || event.ctrlKey ? "toggle" : "single";
+    st.selectElements(ids, mode);
+  };
+  const renderLayerObject = (element: SlideElement) => <div key={element.id} className={`layer-row layer-child ${st.selectedElementIds.includes(element.id) ? "selected-layer" : ""}`}>
+    <Button variant="ghost" className="min-w-0 flex-1 justify-start truncate" onClick={event => selectLayerElements(event, [element.id])}>{element.name}</Button>
+    <Button variant="ghost" size="icon" title="Toggle visibility" onClick={() => st.updateElements([element.id], { hidden: !element.hidden })}><Eye className={element.hidden ? "opacity-30" : ""} /></Button>
+    <Button variant="ghost" size="icon" title="Toggle lock" onClick={() => st.updateElements([element.id], { locked: !element.locked })}><Lock className={element.locked ? "" : "opacity-30"} /></Button>
+  </div>;
   const el = slide.elements.find(e => st.selectedElementIds.includes(e.id));
   const update = (p: Record<string, unknown>) => st.updateElements(st.selectedElementIds, p, "inspector");
   const selectedShapeIds = slide.elements.filter(item => item.type === "shape" && st.selectedElementIds.includes(item.id)).map(item => item.id);
@@ -69,11 +87,24 @@ export function Inspector({ mode, onMode }: { mode: string; onMode: (s: string) 
 
     {mode === "Layers" ? <div className="p-3">
       <div className="section-label mb-3"><Layers size={14} /> Objects · {slide.elements.length}</div>
-      {[...slide.elements].reverse().map(e => <div key={e.id} className={`layer-row ${st.selectedElementIds.includes(e.id) ? "selected-layer" : ""}`}>
-        <Button variant="ghost" className="min-w-0 flex-1 justify-start truncate" onClick={() => st.selectElements(e.groupId ? slide.elements.filter(item => item.groupId === e.groupId).map(item => item.id) : [e.id])}>{e.name}</Button>
-        <Button variant="ghost" size="icon" title="Toggle visibility" onClick={() => st.updateElements([e.id], { hidden: !e.hidden })}><Eye className={e.hidden ? "opacity-30" : ""} /></Button>
-        <Button variant="ghost" size="icon" title="Toggle lock" onClick={() => st.updateElements([e.id], { locked: !e.locked })}><Lock className={e.locked ? "" : "opacity-30"} /></Button>
-      </div>)}
+      {layerRows.map(row => {
+        if (row.kind === "element") return renderLayerObject(row.element);
+        const memberIds = row.members.map(member => member.id);
+        const selectedCount = memberIds.filter(id => st.selectedElementIds.includes(id)).length;
+        const groupClass = selectedCount === memberIds.length ? "selected-layer" : selectedCount > 0 ? "selected-layer-partial" : "";
+        const expanded = expandedGroups.has(row.groupId);
+        return <div key={row.groupId} className="layer-group">
+          <div className={`layer-row layer-group-row ${groupClass}`}>
+            <Button type="button" variant="ghost" size="icon" className="layer-expander" title={expanded ? "Collapse group" : "Expand group"} aria-label={expanded ? "Collapse group" : "Expand group"} aria-expanded={expanded} onClick={() => setExpandedGroups(current => {
+              const n = new Set(current); if (n.has(row.groupId)) n.delete(row.groupId); else n.add(row.groupId); return n;
+            })}>{expanded ? <ChevronDown /> : <ChevronRight />}</Button>
+            <Button type="button" variant="ghost" className="min-w-0 flex-1 justify-start truncate" onClick={event => selectLayerElements(event, memberIds)}>
+              <Layers size={13} /><span>Group: {row.members[0]?.name ?? "Untitled"}</span><small className="layer-group-count">{row.members.length} objects</small>
+            </Button>
+          </div>
+          {expanded && <div className="layer-group-children">{row.members.map(renderLayerObject)}</div>}
+        </div>;
+      })}
     </div> : mode === "Slide customisation" ? <>
       <section className="inspector-section">
         <h3>Slide customisation</h3>

@@ -235,6 +235,17 @@
 .layer-row { display:flex; align-items:center; border-bottom:1px solid var(--border); }
 .layer-row button { font-size:11px; }
 .selected-layer { background:var(--accent); }
+.selected-layer-partial { background:color-mix(in srgb,var(--accent) 55%,transparent); }
+.layer-group-row { min-height:34px; gap:2px; }
+.layer-group-row .layer-expander { width:25px; height:26px; flex:none; padding:3px; }
+.layer-group-row .layer-expander svg { width:14px; height:14px; }
+.layer-group-row > button:last-child { min-width:0; gap:7px; justify-content:flex-start; }
+.layer-group-row > button:last-child svg { width:14px; height:14px; flex:none; color:var(--primary); }
+.layer-group-count { margin-left:auto; color:var(--muted-foreground); font-size:9px; }
+.layer-group-children { margin-left:12px; padding-left:7px; border-left:1px solid var(--border); }
+.layer-child { min-height:31px; }
+.layer-child button { min-width:0; }
+.layer-child button:first-child { padding-left:8px; }
 .animation-entry { border-top:1px solid var(--border); padding-top:6px; margin-top:10px; }
 .studio-status { height:36px; display:flex; flex-shrink:0; align-items:center; justify-content:space-between; padding:0 17px; border-top:1px solid var(--border); background:var(--panel); font-size:10px; color:var(--muted-foreground); }
 .status-controls { display:flex; align-items:center; gap:3px; }
@@ -361,3 +372,14 @@
 
 
 .thumbnail { flex:1; min-width:0; }
+.custom-shape-menu { position:fixed; z-index:410; width:min(350px,calc(100vw - 24px)); max-height:min(390px,calc(100vh - 24px)); overflow:auto; padding:11px; border:1px solid var(--border); border-radius:8px; background:var(--panel); box-shadow:0 18px 50px rgba(0,0,0,.48); }
+.custom-shape-empty { padding:4px 5px 9px; color:var(--muted-foreground); font-size:11px; line-height:1.6; }
+.custom-shape-list { display:flex; flex-direction:column; gap:3px; }
+.custom-shape-row { display:flex; align-items:center; gap:4px; border-bottom:1px solid var(--border); }
+.custom-shape-row>button:last-child { flex:none; width:30px; height:30px; }
+.custom-shape-row>button:last-child svg { width:14px; height:14px; }
+.custom-shape-insert { display:flex; flex:1; min-width:0; justify-content:flex-start; gap:9px; padding:8px; text-align:left; }
+.custom-shape-insert>svg { flex:none; color:var(--primary); }
+.custom-shape-insert>span { display:flex; min-width:0; flex-direction:column; align-items:flex-start; gap:2px; }
+.custom-shape-insert strong { max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; font-weight:500; }
+.custom-shape-insert small { color:var(--muted-foreground); font-size:9px; }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { makeShape } from "./factory";
-import { createCustomShapeDefinition, instantiateCustomShape } from "./customShapes";
+import { createCustomShapeDefinition, deleteCustomShape, instantiateCustomShape, listCustomShapes, saveCustomShape } from "./customShapes";
 import { FEATURE_FLAGS } from "./featureFlags";
 
 describe("reusable custom-shape foundations", () => {
@@ -43,12 +43,30 @@ describe("reusable custom-shape foundations", () => {
     expect(definition.elements.every(element => !element.groupId)).toBe(true);
   });
 
-  it("keeps the custom-shape library and instantiation disabled until authorized", () => {
-    expect(FEATURE_FLAGS.customShapeLibrary).toBe(false);
-    const source = makeShape("star", { groupId: "group-a" });
-    const companion = makeShape("ellipse", { groupId: "group-a", x: 900 });
-    const definition = createCustomShapeDefinition([source, companion], "Hidden preset");
-    expect(instantiateCustomShape(definition, 400, 400)).toEqual([]);
+  it("instantiates a fresh group while preserving each member's individual styling", () => {
+    expect(FEATURE_FLAGS.customShapeLibrary).toBe(true);
+    const source = makeShape("star", { groupId: "group-a", fill: "#ff8800", gradient: true, gradientColors: ["#ff8800", "#fff000"] });
+    const companion = makeShape("ellipse", { groupId: "group-a", x: 900, fill: "#1155cc", gradient: false });
+    const definition = createCustomShapeDefinition([source, companion], "Festival badge");
+    const inserted = instantiateCustomShape(definition, 400, 400);
+    expect(inserted).toHaveLength(2);
+    expect(inserted[0]?.id).not.toBe(source.id);
+    expect(inserted[0]?.groupId).toBeTruthy();
+    expect(inserted[0]?.groupId).toBe(inserted[1]?.groupId);
+    expect(inserted[0]?.fill).toBe("#ff8800");
+    expect(inserted[0]?.gradientColors).toEqual(["#ff8800", "#fff000"]);
+    expect(inserted[1]?.fill).toBe("#1155cc");
+    expect(inserted[1]?.gradient).toBe(false);
+  });
+
+  it("persists reusable definitions in the workspace library", () => {
+    const first = makeShape("star", { groupId: "library-group", fill: "#ff8800" });
+    const second = makeShape("ellipse", { groupId: "library-group", fill: "#1155cc", x: 900 });
+    const definition = createCustomShapeDefinition([first, second], "Two-tone mark");
+    expect(saveCustomShape(definition)).toBe(true);
+    expect(listCustomShapes().some(shape => shape.id === definition.id)).toBe(true);
+    expect(deleteCustomShape(definition.id)).toBe(true);
+    expect(listCustomShapes().some(shape => shape.id === definition.id)).toBe(false);
   });
 
   it("rejects selections that are not one complete multi-object group", () => {

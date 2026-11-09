@@ -1,42 +1,27 @@
-# Staged PrismDeck capabilities
+# PrismDeck feature status
 
-This document describes groundwork that is deliberately **not exposed in the editor**. Do not add ribbon actions, Inspector entries, routes, menu items, keyboard shortcuts, presenter controls, or insertion actions for these capabilities until the product owner explicitly authorizes activation.
+## Active in the editor
 
-## Activation switches
+- Remembered-position snapping: enabled. Objects retain their previous move/resize bounds as alignment guides for other objects.
+- Reusable custom-shape library: enabled. Complete groups of shapes can be saved and inserted on any slide in this browser workspace. Each member retains its own fill, gradient, stroke, opacity, rotation, text and effects.
 
-All switches live in `src/lib/prism/featureFlags.ts` and must remain `false` until approval:
+## Still staged and inaccessible
 
-- `rememberedPositionSnapping`
-- `customShapeLibrary`
-- `stickFigureAnimationStudio`
-- `bibleVerseInserter`
+These capabilities remain deliberately disabled until separately authorized:
 
-The current editor's existing snapping behavior remains available. Remembered-position alignment guides are not activated yet.
+- Stick-figure animation studio: data contracts only; no editor, timeline, playback renderer, or export pipeline.
+- Bible verse insertion: provider contracts only; no translation source, verse search, insertion UI, or multi-verse layout builder.
+
+The activation switches live in `src/lib/prism/featureFlags.ts`. Only `rememberedPositionSnapping` and `customShapeLibrary` are enabled. Do not enable `stickFigureAnimationStudio` or `bibleVerseInserter` without explicit approval.
 
 ## Remembered-position snapping
 
-The document model now allows an object to retain its last pre-move/pre-resize bounds. The snap-guide utility can combine those remembered bounds with slide edges/centre lines and the current bounds of peer objects. When authorized, a future drag can snap to a line from an object's earlier placement, even after that reference object has moved.
+After a move or resize, PrismDeck stores the object's previous bounds. Other selected objects can align to the current or remembered left, centre, right, top, middle, and bottom guides of unselected peer objects. The dragged object's own previous location is not used as a target during its current drag, avoiding self-snapping.
 
-The feature is gated: while `rememberedPositionSnapping` is false, old-position targets are not used and last-position metadata is not written.
+## Reusable custom shapes
 
-## Reusable custom group shapes
+Save a complete group of shape objects from Home → Arrange → Save as custom shape. Insert saved assets from Insert → Custom library. The library is stored in browser local storage and is available across slides in the same browser profile and site origin; it is not cloud-synchronised. Inserting an asset creates fresh object IDs and a new shared group ID while preserving every member's own visual styling.
 
-The custom-shape domain module can describe a group of shapes as a reusable asset with normalized local geometry. It retains shape kinds, fills, multi-stop gradients, gradient design/angle, strokes, opacity, rotations, text, shadows, blur, and other member styling. Instantiation allocates fresh element IDs and one new shared group ID.
+## Group and Layers behaviour
 
-The custom-shape library is gated by `customShapeLibrary`; storage and instantiation remain inactive while the switch is false. The first storage implementation is browser-local only. Cross-device cloud sync is not included.
-
-## Stick-figure animation studio
-
-`src/lib/prism/animation/model.ts` establishes data contracts for articulated rigs (joints and bones), poses, keyframes, interpolation, animation layers, frames-per-second, duration, looping, and canvas settings. Timeline utilities and tests are data-only.
-
-No animation editor, rigging canvas, onion-skin view, playback renderer, audio timeline, export pipeline, route, or slide insertion UI has been built or exposed yet. Those are for the separately authorized major animation project.
-
-## Bible verse insertion
-
-`src/lib/prism/bible/contracts.ts` contains only provider and document contracts: verse references, translation descriptors, verse records, insertion targets, and a provider interface.
-
-No Bible text or translation database is bundled, no external Bible API is connected, and no verse insertion UI or slide template is exposed. Before implementation, requirements must define supported translations, licensing/attribution, reference search, multi-verse layouts, target slide behavior, styling, offline expectations, and church-service presentation needs.
-
-## Activation rule
-
-Do not change these switches to true or expose any corresponding UI until the user explicitly says to activate the relevant feature. The interfaces are preparatory foundations, not a claim that the full animation or church presentation workflows are complete.
+Layers displays each group as a collapsible parent row. Expand it to inspect and select individual members. Shift-click adds an object to the current selection; Ctrl-click or Cmd-click toggles an object's selection. Clicking a group parent selects the complete group. Group-wide gradients are coordinated only when every member is a shape using the same gradient definition; mixed or differently coloured groups keep each member's own appearance.

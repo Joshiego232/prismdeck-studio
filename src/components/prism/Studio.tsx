@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowUp, ArrowUpRight, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Copy, Download, Grid2X2, ImagePlus, Layers, Maximize, MonitorPlay, MousePointer2, PanelLeftClose, PanelRightClose, Play, Plus, Redo2, Save, Settings2, Square, StickyNote, Trash2, Type, Undo2, Video, X, ZoomIn, ZoomOut, Triangle, Sparkles, MoveRight, BarChart3 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpRight, BookmarkPlus, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Copy, Download, Grid2X2, ImagePlus, Layers, Maximize, MonitorPlay, MousePointer2, PanelLeftClose, PanelRightClose, Play, Plus, Redo2, Save, Settings2, Shapes, Square, StickyNote, Trash2, Type, Undo2, Video, X, ZoomIn, ZoomOut, Triangle, Sparkles, MoveRight, BarChart3 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useDeck, currentSlide, findSlide, startAutosave, saveNow } from "@/lib/prism/store";
@@ -11,7 +11,8 @@ import { makeText, makeShape, makeImage, makeVideo, makeChart, makeDeck, makeSli
 import { putAsset } from "@/lib/prism/assets";
 import { DEFAULT_RIBBON, type RibbonTab } from "@/lib/prism/ribbon";
 import { ANIMATIONS, TRANSITIONS, buildSteps } from "@/lib/prism/effects";
-import { SHAPE_KINDS, type Deck } from "@/lib/prism/types";
+import { SHAPE_KINDS, type Deck, type ShapeEl } from "@/lib/prism/types";
+import { createCustomShapeDefinition, deleteCustomShape, instantiateCustomShape, listCustomShapes, saveCustomShape, type CustomShapeDefinition } from "@/lib/prism/customShapes";
 import { ScaledSlide } from "./ScaledSlide";
 import { Inspector, TransitionControls } from "./Inspector";
 
@@ -89,17 +90,95 @@ function ShapePicker({ onSelect }: { onSelect: (shape: (typeof SHAPE_KINDS)[numb
   </>;
 }
 
+function CustomShapePicker({ shapes, onInsert, onDelete }: {
+  shapes: CustomShapeDefinition[];
+  onInsert: (shape: CustomShapeDefinition) => void;
+  onDelete: (id: string) => void;
+}) {
+  const anchor = useRef<HTMLDivElement>(null), menu = useRef<HTMLDivElement>(null);
+  const [open, setOpen] = useState(false), [position, setPosition] = useState({ top: 0, left: 12 });
+  useEffect(() => {
+    if (!open) return;
+    const closeOutside = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (anchor.current?.contains(target) || menu.current?.contains(target)) return;
+      setOpen(false);
+    };
+    const closeEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeEscape);
+    return () => { document.removeEventListener("pointerdown", closeOutside); document.removeEventListener("keydown", closeEscape); };
+  }, [open]);
+  const toggle = () => {
+    if (!open) {
+      const rect = anchor.current?.getBoundingClientRect();
+      if (rect) setPosition({ top: Math.min(rect.bottom + 6, Math.max(12, window.innerHeight - 360)), left: Math.max(12, Math.min(rect.left, window.innerWidth - 350)) });
+    }
+    setOpen(value => !value);
+  };
+  return <>
+    <div ref={anchor} className="shape-picker-anchor">
+      <Button type="button" variant="ghost" className="shape-picker-trigger" aria-haspopup="menu" aria-expanded={open} onClick={toggle}>
+        <Shapes size={18} /><span>My Shapes</span><ChevronDown size={13} />
+      </Button>
+    </div>
+    {open && typeof document !== "undefined" && createPortal(
+      <div ref={menu} className="custom-shape-menu" role="menu" style={{ top: position.top, left: position.left }}>
+        <div className="shape-picker-heading">Custom shape library</div>
+        {shapes.length === 0 ? <p className="custom-shape-empty">No saved shapes yet. Group two or more shapes, then choose “Save as custom shape” from Home → Arrange.</p> : <div className="custom-shape-list">
+          {shapes.map(shape => <div className="custom-shape-row" key={shape.id}>
+            <Button type="button" variant="ghost" className="custom-shape-insert" role="menuitem" onClick={() => { onInsert(shape); setOpen(false); }}>
+              <Shapes size={16} /><span><strong>{shape.name}</strong><small>{shape.elements.length} objects · {Math.round(shape.width)} × {Math.round(shape.height)}</small></span>
+            </Button>
+            <Button type="button" variant="ghost" size="icon" title={`Delete ${shape.name}`} aria-label={`Delete ${shape.name}`} onClick={() => onDelete(shape.id)}><Trash2 /></Button>
+          </div>)}
+        </div>}
+      </div>, document.body
+    )}
+  </>;
+}
+
 export default function Studio({ slideIndex, step, print, presenterMode = false, setCoordinate }: StudioProps) {
   const st = useDeck(), prefs = usePrefs(), slide = currentSlide(st);
   const [tab, setTab] = useState<RibbonTab>("home"), [mode, setMode] = useState("Properties"), [grid, setGrid] = useState(false), [notes, setNotes] = useState(true);
   const [presenting, setPresenting] = useState(presenterMode), [previewKey, setPreviewKey] = useState(0), [zoom, setZoom] = useState(1), [projectsOpen, setProjectsOpen] = useState(false);
   const [slideMenu, setSlideMenu] = useState<{ x: number; y: number; slideId: string } | null>(null);
   const [morphFrom, setMorphFrom] = useState<typeof slide | undefined>();
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(false), [customShapes, setCustomShapes] = useState<CustomShapeDefinition[]>([]);
   const fileInput = useRef<HTMLInputElement>(null), stage = useRef<HTMLDivElement>(null), touch = useRef<{ x: number; y: number } | null>(null);
   const previousSlideRef = useRef(slide);
   const selected = slide.elements.find(e => st.selectedElementIds.includes(e.id));
   const index = st.deck.slides.findIndex(s => s.id === slide.id);
+  const selectedGroupElements = slide.elements.filter(element => st.selectedElementIds.includes(element.id));
+  const selectedGroupId = selectedGroupElements[0]?.groupId;
+  const canSaveSelectedCustomShape = selectedGroupElements.length >= 2 && !!selectedGroupId
+    && selectedGroupElements.every(element => element.type === "shape" && element.groupId === selectedGroupId)
+    && slide.elements.filter(element => element.groupId === selectedGroupId).length === selectedGroupElements.length;
+  const saveSelectedCustomShape = () => {
+    if (!canSaveSelectedCustomShape) return;
+    const name = window.prompt("Name this custom shape", selectedGroupElements[0]?.name ?? "Custom shape");
+    if (name === null) return;
+    try {
+      const definition = createCustomShapeDefinition(selectedGroupElements as ShapeEl[], name);
+      if (!saveCustomShape(definition)) { toast.error("Could not save this shape to browser storage."); return; }
+      setCustomShapes(listCustomShapes());
+      toast.success(`“${definition.name}” saved to Custom library.`);
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Could not create this custom shape."); }
+  };
+  const insertCustomShape = (definition: CustomShapeDefinition) => {
+    const x = Math.round((st.deck.width - definition.width) / 2), y = Math.round((st.deck.height - definition.height) / 2);
+    const elements = instantiateCustomShape(definition, x, y);
+    if (!elements.length) { toast.error("This custom shape could not be inserted."); return; }
+    st.mutate(d => { findSlide(d, slide.id)?.elements.push(...elements); });
+    st.selectElements(elements.map(element => element.id));
+    toast.success(`“${definition.name}” inserted on this slide.`);
+  };
+  const removeCustomShape = (id: string) => {
+    const shape = customShapes.find(item => item.id === id);
+    if (!shape || !window.confirm(`Delete “${shape.name}” from the Custom Shape Library?`)) return;
+    if (deleteCustomShape(id)) { setCustomShapes(listCustomShapes()); toast.success("Custom shape deleted."); }
+    else toast.error("Could not delete this custom shape.");
+  };
   const safeSave = () => { try { saveNow(); toast.success("Deck saved to this browser"); } catch { toast.error("Could not save. Export a copy to keep your work."); } };
   const duplicateSlideAndNavigate = useCallback((id?: string) => {
     const duplicateId = useDeck.getState().duplicateSlides(id ? [id] : undefined);
@@ -147,6 +226,7 @@ export default function Studio({ slideIndex, step, print, presenterMode = false,
   useEffect(() => {
     const local = loadProject(); useDeck.getState().loadDeck(local ?? makeDemoDeck());
     const target = useDeck.getState().deck.slides[Math.max(0, slideIndex - 1)]; if (target) { useDeck.getState().selectSlide(target.id); previousSlideRef.current = target; }
+    setCustomShapes(listCustomShapes());
     setReady(true);
     return startAutosave(() => usePrefs.getState().autosaveDelay, () => usePrefs.getState().autosave);
   }, []);
@@ -309,8 +389,8 @@ export default function Studio({ slideIndex, step, print, presenterMode = false,
     <div className="studio-ribbon">
       {tab === "transitions" ? <><ToolGroup label="Playback"><Tool icon={<Play />} label="Preview" onClick={() => setPreviewKey(k => k + 1)} /></ToolGroup><ToolGroup label="Transition gallery">{TRANSITIONS.map(t => <Button variant="ghost" className={`effect-tile ${slide.transition.type === t.id ? "effect-selected" : ""}`} key={t.id} onClick={() => st.mutate(d => { const s = findSlide(d, slide.id); if (s) s.transition.type = t.id; })}><span className={`effect-symbol effect-${t.id}`} /><span>{t.label}</span></Button>)}</ToolGroup></> : tab === "animations" ? <><ToolGroup label="Playback"><Tool icon={<Play />} label="Preview" onClick={() => setPreviewKey(k => k + 1)} /></ToolGroup><ToolGroup label="Entrance & emphasis">{ANIMATIONS.slice(0, 10).map(a => <Tool key={a.id} icon={<Sparkles />} label={a.label} disabled={!selected} onClick={() => { const element = selected; if (!element) return; import("@/lib/prism/factory").then(({ makeAnimation }) => st.mutate(d => findSlide(d, slide.id)?.animations.push(makeAnimation(element.id, a.kind, a.id)))); }} />)}</ToolGroup></> : tab === "design" ? <ToolGroup label="Slide size">{SLIDE_SIZES.map(size => <Button key={size.label} variant="ghost" className={`effect-tile ${st.deck.width === size.width && st.deck.height === size.height ? "effect-selected" : ""}`} title={size.label} onClick={() => chooseSlideSize(size.width, size.height)}><span className="effect-symbol" /><span>{size.label}</span></Button>)}<Button variant="outline" size="sm" onClick={customSlideSize}>Custom size</Button></ToolGroup> : <>
         {basicGroups.map(g => <ToolGroup key={g.id} label={g.label}>{g.id === "shapes" ? <ShapePicker onSelect={shape => st.addElement(makeShape(shape))} /> : g.tools.filter(t => !t.hidden && actions[t.id] && toolMeta[t.id]).map(t => <Tool key={t.id} {...toolMeta[t.id]} disabled={t.id === "edit.undo" ? !st.past.length : t.id === "edit.redo" ? !st.future.length : false} onClick={actions[t.id]} />)}</ToolGroup>)}
-        {tab === "home" && <><ToolGroup label="Insert"><Tool icon={<Type />} label="Text box" onClick={actions["insert.text"]} /><ShapePicker onSelect={shape => st.addElement(makeShape(shape))} /><Tool icon={<ImagePlus />} label="Image" onClick={actions["insert.image"]} /></ToolGroup><ToolGroup label="Arrange"><Tool icon={<Layers />} label="Layers" onClick={() => { setMode("Layers"); prefs.set({ showInspector: true }); }} /><Tool icon={<Copy />} label="Duplicate" onClick={st.duplicateSelected} disabled={!selected} /><Tool icon={<Layers />} label="Group" onClick={() => st.groupElements()} disabled={st.selectedElementIds.length < 2} /><Tool icon={<Layers />} label="Ungroup" onClick={() => st.ungroupElements()} disabled={!selected?.groupId} /></ToolGroup></>}
-        {tab === "insert" && <><ToolGroup label="Data"><Tool icon={<BarChart3 />} label="Bar chart" onClick={() => st.addElement(makeChart("bar", { title: "Sample data — replace with yours" }))} /></ToolGroup></>}
+        {tab === "home" && <><ToolGroup label="Insert"><Tool icon={<Type />} label="Text box" onClick={actions["insert.text"]} /><ShapePicker onSelect={shape => st.addElement(makeShape(shape))} /><Tool icon={<ImagePlus />} label="Image" onClick={actions["insert.image"]} /></ToolGroup><ToolGroup label="Arrange"><Tool icon={<Layers />} label="Layers" onClick={() => { setMode("Layers"); prefs.set({ showInspector: true }); }} /><Tool icon={<Copy />} label="Duplicate" onClick={st.duplicateSelected} disabled={!selected} /><Tool icon={<Layers />} label="Group" onClick={() => st.groupElements()} disabled={st.selectedElementIds.length < 2} /><Tool icon={<Layers />} label="Ungroup" onClick={() => st.ungroupElements()} disabled={!selected?.groupId} /><Tool icon={<BookmarkPlus />} label="Save as custom shape" onClick={saveSelectedCustomShape} disabled={!canSaveSelectedCustomShape} /></ToolGroup></>}
+        {tab === "insert" && <><ToolGroup label="Data"><Tool icon={<BarChart3 />} label="Bar chart" onClick={() => st.addElement(makeChart("bar", { title: "Sample data — replace with yours" }))} /></ToolGroup><ToolGroup label="Custom library"><CustomShapePicker shapes={customShapes} onInsert={insertCustomShape} onDelete={removeCustomShape} /></ToolGroup></>}
         {tab === "view" && <ToolGroup label="Panels"><Tool icon={<PanelLeftClose />} label="Navigator" onClick={() => prefs.set({ showNavigator: !prefs.showNavigator })} /><Tool icon={<PanelRightClose />} label="Inspector" onClick={() => prefs.set({ showInspector: !prefs.showInspector })} /><Tool icon={<Grid2X2 />} label="Grid lines" onClick={() => prefs.set({ showGrid: !prefs.showGrid })} /></ToolGroup>}
       </>}
       <div className="ribbon-end"><span className="workspace-badge"><span className="status-dot" /> EDITING</span></div>

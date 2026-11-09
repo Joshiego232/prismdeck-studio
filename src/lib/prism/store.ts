@@ -9,6 +9,7 @@ import { loadProject, saveProject } from "./projects";
 const HISTORY_LIMIT = 120;
 
 export type SaveState = "saved" | "saving" | "unsaved" | "error";
+export type ElementSelectionMode = "single" | "add" | "toggle";
 
 interface MutateOpts { history?: boolean; coalesce?: string | undefined }
 
@@ -32,7 +33,7 @@ export interface DeckState {
   loadDeck: (d: Deck) => void;
 
   selectSlide: (id: string, mode?: "single" | "toggle" | "range") => void;
-  selectElements: (ids: string[]) => void;
+  selectElements: (ids: string[], mode?: ElementSelectionMode) => void;
   setEditingText: (id: string | null) => void;
 
   addSlide: (after?: string, s?: Slide) => string;
@@ -127,7 +128,20 @@ export const useDeck = create<DeckState>()((set, get) => {
       }
       return { currentSlideId: id, slideSelectionAnchorId: id, selectedSlideIds: [id], selectedElementIds: [], editingTextId: null };
     }),
-    selectElements: (ids) => set((st) => ({ selectedElementIds: ids, editingTextId: ids.includes(st.editingTextId ?? "") ? st.editingTextId : null })),
+    selectElements: (ids, mode = "single") => set((st) => {
+      const uniqueIds = [...new Set(ids)];
+      if (mode === "add") {
+        const selectedElementIds = [...new Set([...st.selectedElementIds, ...uniqueIds])];
+        return { selectedElementIds, editingTextId: selectedElementIds.includes(st.editingTextId ?? "") ? st.editingTextId : null };
+      }
+      if (mode === "toggle") {
+        const selected = new Set(st.selectedElementIds);
+        for (const id of uniqueIds) selected.has(id) ? selected.delete(id) : selected.add(id);
+        const selectedElementIds = [...selected];
+        return { selectedElementIds, editingTextId: selectedElementIds.includes(st.editingTextId ?? "") ? st.editingTextId : null };
+      }
+      return { selectedElementIds: uniqueIds, editingTextId: uniqueIds.includes(st.editingTextId ?? "") ? st.editingTextId : null };
+    }),
     setEditingText: (id) => set({ editingTextId: id }),
 
     addSlide: (after, s) => {

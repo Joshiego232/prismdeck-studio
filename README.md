@@ -47,7 +47,10 @@ Right-click a slide thumbnail to add a slide after it, duplicate it, or delete i
 - Drag objects to snap to slide edges/centres and to alignment points on other objects; cyan guides show active alignments.
 - Selected objects have eight resize handles. Hold `Shift` while dragging a handle to preserve the original aspect ratio.
 - The Inspector's **Slide customisation** tab contains slide-level settings, including automatic advance, visibility, backgrounds, transitions, and speaker notes.
-- Backgrounds and shapes support up to six gradient colours, multiple gradient styles, and rotation. Grouped shapes share one gradient coordinate field across the group's bounds.
+- Backgrounds and shapes support up to six gradient colours, multiple gradient styles, and rotation. Grouped shapes share a gradient field only when every member uses the same gradient settings; otherwise individual colours and gradients are preserved.
+- Remembered-position snapping retains an object's previous move/resize bounds as additional alignment guides.
+- Save a group of two or more shapes using **Home → Arrange → Save as custom shape**, then insert it from **Insert → Custom library** on any slide. The library is local to the current browser profile and site origin, not cloud-synchronised.
+- In **Layers**, grouped objects appear under collapsible group rows. Shift-click adds items to the selection; Ctrl/Cmd-click toggles individual items.
 
 ## Project structure
 
@@ -68,4 +71,4 @@ No license has been assigned. All rights remain with the project owner unless a 
 
 ## Staged capabilities
 
-Future remembered-position snapping, reusable custom group shapes, a pro stick-figure animation workspace, and Bible verse insertion have preparatory code contracts only. They are intentionally disabled and have no user-facing controls until explicitly authorized. See `STAGED_FEATURES.md`.
+Remembered-position snapping and the reusable custom-shape library are active. The pro stick-figure animation workspace and Bible verse insertion remain staged and inaccessible until separately authorized. See `STAGED_FEATURES.md`.

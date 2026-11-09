@@ -37,6 +37,20 @@ describe("PrismDeck editor store", () => {
     expect(useDeck.getState().selectedElementIds).toEqual([first.id, second.id]);
   });
 
+  it("supports additive and toggle multi-selection for Layers", () => {
+    const first = makeText({ name: "Layer one" });
+    const second = makeText({ name: "Layer two" });
+    const third = makeText({ name: "Layer three" });
+    useDeck.getState().mutate(deck => { deck.slides[0]!.elements.push(first, second, third); });
+    useDeck.getState().selectElements([first.id]);
+    useDeck.getState().selectElements([second.id], "add");
+    expect(useDeck.getState().selectedElementIds).toEqual([first.id, second.id]);
+    useDeck.getState().selectElements([first.id], "toggle");
+    expect(useDeck.getState().selectedElementIds).toEqual([second.id]);
+    useDeck.getState().selectElements([third.id], "toggle");
+    expect(useDeck.getState().selectedElementIds).toEqual([second.id, third.id]);
+  });
+
   it("duplicates a selected group with a new shared group id", () => {
     const state = useDeck.getState();
     const first = makeText({ name: "Grouped A" });
