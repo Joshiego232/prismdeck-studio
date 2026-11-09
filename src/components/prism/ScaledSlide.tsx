@@ -306,9 +306,9 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
         {showGrid && <div className="stage-grid pointer-events-none absolute inset-0" style={{ backgroundSize: "40px 40px" }} />}
         {slide.elements.filter(e => !e.hidden).map(el => {
           const groupShapes = el.type === "shape" && el.groupId
-            ? slide.elements.filter(item => item.type === "shape" && item.groupId === el.groupId)
+            ? slide.elements.filter((item): item is Extract<SlideElement, { type: "shape" }> => item.type === "shape" && item.groupId === el.groupId)
             : [];
-          const gradientSource = groupShapes.find(item => item.type === "shape" && item.gradient) ?? (el.type === "shape" ? el : undefined);
+          const gradientSource = groupShapes.find(item => item.gradient) ?? (el.type === "shape" ? el : undefined);
           let groupFillStyle: CSSProperties | undefined;
           if (el.type === "shape" && gradientSource?.gradient && groupShapes.length > 1) {
             const groupLeft = Math.min(...groupShapes.map(item => item.x));
