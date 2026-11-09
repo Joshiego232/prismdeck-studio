@@ -32,6 +32,8 @@ interface BaseEl extends Effects {
   hidden?: boolean;
   groupId?: string;
   hyperlink?: string;
+  /** Last layout bounds, retained as optional alignment guides when enabled. */
+  snapMemory?: { x: number; y: number; w: number; h: number };
 }
 
 export interface TextProps {
