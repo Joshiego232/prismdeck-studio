@@ -14,7 +14,7 @@ export const baseEffects = (): Effects => ({
 });
 
 export const defaultBackground = (): Background => ({
-  type: "solid", color: "#0f1220", color2: "#1d2450", angle: 135, image: "", imageFit: "cover",
+  type: "solid", color: "#0f1220", color2: "#1d2450", angle: 135, gradientType: "linear", gradientColors: ["#0f1220", "#1d2450"], image: "", imageFit: "cover",
 });
 
 export const defaultTransition = (): Transition => ({
@@ -57,7 +57,7 @@ export function makeShape(shape: ShapeKind, p: Partial<ShapeEl> = {}): ShapeEl {
   return {
     ...base("shape", shape.charAt(0).toUpperCase() + shape.slice(1), 700, 380, line ? 520 : 380, line ? 40 : 300),
     type: "shape", shape, fill: line ? "transparent" : "#6366f1", fill2: "#22d3ee", gradient: false,
-    gradientAngle: 135, stroke: line ? "#22d3ee" : "transparent", strokeWidth: line ? 8 : 0,
+    gradientAngle: 135, gradientType: "linear", gradientColors: ["#6366f1", "#22d3ee"], stroke: line ? "#22d3ee" : "transparent", strokeWidth: line ? 8 : 0,
     dash: "solid", radius: shape === "roundRect" ? 40 : 0, text: "", textColor: "#ffffff",
     fontSize: 36, fontFamily: "Space Grotesk",
     ...p,
@@ -125,7 +125,15 @@ export function cloneSlide(s: Slide): Slide {
   c.id = uid("s_");
   c.name = s.name + " copy";
   delete c.section;
-  c.elements.forEach((e) => { const n = uid("e_"); map.set(e.id, n); e.id = n; });
+  const groupMap = new Map<string, string>();
+  c.elements.forEach((e) => {
+    const n = uid("e_"); map.set(e.id, n); e.id = n;
+    if (e.groupId) {
+      let nextGroup = groupMap.get(e.groupId);
+      if (!nextGroup) { nextGroup = uid("g_"); groupMap.set(e.groupId, nextGroup); }
+      e.groupId = nextGroup;
+    }
+  });
   c.animations = c.animations
     .filter((a) => map.has(a.elementId))
     .map((a) => ({ ...a, id: uid("a_"), elementId: map.get(a.elementId) ?? a.elementId }));
