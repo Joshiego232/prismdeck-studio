@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import type { Deck, Slide, SlideElement, TextEl } from "@/lib/prism/types";
 import { gradientCss } from "@/lib/prism/gradients";
+import { isFeatureEnabled } from "@/lib/prism/featureFlags";
+import { collectSnapTargets, findAxisSnap } from "@/lib/prism/snapGuides";
 import { useDeck } from "@/lib/prism/store";
 import { fontStack, loadWebFont } from "@/lib/prism/fonts";
 import { useResolvedSrc } from "@/lib/prism/assets";
@@ -49,19 +51,6 @@ function TextContent({ el, presenting }: { el: TextEl; presenting: boolean }) {
 }
 
 type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
-
-function findAxisSnap(anchors: number[], targets: number[], threshold: number): { delta: number; guide: number } | null {
-  let best: { delta: number; guide: number } | null = null;
-  for (const anchor of anchors) {
-    for (const target of targets) {
-      const delta = target - anchor;
-      if (Math.abs(delta) <= threshold && (!best || Math.abs(delta) < Math.abs(best.delta))) {
-        best = { delta, guide: target };
-      }
-    }
-  }
-  return best;
-}
 
 export function ScaledSlide({ slide, deck, editable = false, presenting = false, step = 0, previewKey = 0, showGrid = false, morphFrom }: { slide: Slide; deck: Pick<Deck, "width" | "height">; editable?: boolean; presenting?: boolean; step?: number; previewKey?: number; showGrid?: boolean; morphFrom?: Slide }) {
   const host = useRef<HTMLDivElement>(null), scene = useRef<HTMLDivElement>(null);
@@ -166,8 +155,15 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
     const groupWidth = Math.max(1, groupRight - groupLeft);
     const groupHeight = Math.max(1, groupBottom - groupTop);
     const peers = slide.elements.filter(item => !selectedIds.has(item.id) && !item.hidden);
-    const xTargets = [0, deck.width / 2, deck.width, ...peers.flatMap(item => [item.x, item.x + item.w / 2, item.x + item.w])];
-    const yTargets = [0, deck.height / 2, deck.height, ...peers.flatMap(item => [item.y, item.y + item.h / 2, item.y + item.h])];
+    const rememberPreviousPosition = isFeatureEnabled("rememberedPositionSnapping");
+    const snapTargets = collectSnapTargets(
+      rememberPreviousPosition ? [...peers, ...originals] : peers,
+      deck.width,
+      deck.height,
+      rememberPreviousPosition,
+    );
+    const xTargets = snapTargets.x;
+    const yTargets = snapTargets.y;
     const threshold = 8 / Math.max(interactionScale, 0.1);
 
     const move = (ev: globalThis.PointerEvent) => {
@@ -296,6 +292,18 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
     const up = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
+      if (mode !== "rotate" && isFeatureEnabled("rememberedPositionSnapping")) {
+        useDeck.getState().mutate(d => {
+          const current = d.slides.find(item => item.id === slide.id);
+          if (!current) return;
+          for (const original of originals) {
+            const item = current.elements.find(candidate => candidate.id === original.id);
+            if (item && !item.locked) {
+              item.snapMemory = { x: original.x, y: original.y, w: original.w, h: original.h };
+            }
+          }
+        }, { history: false });
+      }
       setSnapGuides({ x: null, y: null });
     };
     window.addEventListener("pointermove", move);
