@@ -1,18 +1,51 @@
 import type { ReactNode } from "react";
-import { AlignCenter, AlignLeft, AlignRight, Bold, Italic, Underline, Layers, ChevronUp, ChevronDown, Trash2, Copy, Eye, Lock } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, Bold, Italic, Underline, Layers, ChevronUp, ChevronDown, Trash2, Copy, Eye, Lock, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDeck, currentSlide, findSlide } from "@/lib/prism/store";
 import { FONT_CATALOGUE, loadWebFont } from "@/lib/prism/fonts";
 import { TRANSITIONS, ANIMATIONS, EASINGS } from "@/lib/prism/effects";
 import { makeAnimation } from "@/lib/prism/factory";
-import type { Animation, Slide, SlideElement } from "@/lib/prism/types";
+import { normalizeGradientColors } from "@/lib/prism/gradients";
+import type { Animation, Background, GradientType, Slide, SlideElement } from "@/lib/prism/types";
 
 export function Field({ label, children }: { label: string; children: ReactNode }) { return <label className="property-field"><span>{label}</span>{children}</label>; }
 export function Numeric({ label, value, onChange, min, max }: { label: string; value: number; onChange: (v: number) => void; min?: number; max?: number }) { return <Field label={label}><input aria-label={label} type="number" value={Math.round(value * 100) / 100} min={min} max={max} onChange={e => { const n = Number(e.target.value); if (Number.isFinite(n)) onChange(Math.min(max ?? Infinity, Math.max(min ?? -Infinity, n))); }} /></Field>; }
+
+function GradientEditor({ colors, angle, type, onColorsChange, onAngleChange, onTypeChange }: {
+  colors: string[];
+  angle: number;
+  type: GradientType;
+  onColorsChange: (colors: string[]) => void;
+  onAngleChange: (angle: number) => void;
+  onTypeChange: (type: GradientType) => void;
+}) {
+  const stops = normalizeGradientColors(colors);
+  return <>
+    <Field label="Gradient design"><select value={type} onChange={e => onTypeChange(e.target.value as GradientType)}>
+      <option value="linear">Linear</option>
+      <option value="radial">Radial</option>
+      <option value="reverse-radial">Reverse radial</option>
+      <option value="conic">Conic</option>
+      <option value="diamond">Diamond</option>
+    </select></Field>
+    <Numeric label="Gradient rotation (°)" value={angle} min={0} max={360} onChange={onAngleChange} />
+    <div className="gradient-stops">
+      <div className="section-label">Gradient colours · {stops.length}/6</div>
+      {stops.map((color, index) => <div className="gradient-stop-row" key={index}>
+        <span className="gradient-stop-label">Stop {index + 1}</span>
+        <input aria-label={`Gradient colour ${index + 1}`} type="color" value={color} onChange={e => onColorsChange(stops.map((item, i) => i === index ? e.target.value : item))} />
+        <Button title={`Remove colour ${index + 1}`} variant="ghost" size="icon" disabled={stops.length <= 2} onClick={() => onColorsChange(stops.filter((_, i) => i !== index))}><Trash2 /></Button>
+      </div>)}
+      <Button variant="outline" size="sm" disabled={stops.length >= 6} onClick={() => onColorsChange([...stops, stops[stops.length - 1] ?? "#ffffff"])}><Plus /> Add colour</Button>
+    </div>
+  </>;
+}
+
 export function TransitionControls({ slide }: { slide: Slide }) {
   const patch = (p: Partial<Slide["transition"]>) => useDeck.getState().mutate(d => { const s = findSlide(d, slide.id); if (s) Object.assign(s.transition, p); });
   return <><Field label="Transition"><select value={slide.transition.type} onChange={e => patch({ type: e.target.value })}>{TRANSITIONS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}</select></Field><div className="property-grid"><Numeric label="Duration (ms)" value={slide.transition.duration} min={0} max={10000} onChange={duration => patch({ duration })} /><Field label="Direction"><select value={slide.transition.direction} onChange={e => patch({ direction: e.target.value as Slide["transition"]["direction"] })}>{["left", "right", "up", "down"].map(d => <option key={d}>{d}</option>)}</select></Field></div><Field label="Easing"><select value={slide.transition.easing} onChange={e => patch({ easing: e.target.value })}>{EASINGS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}</select></Field></>;
 }
+
 export function AnimationControls({ slide, el }: { slide: Slide; el?: SlideElement | undefined }) {
   const animations = slide.animations.filter(a => a.elementId === el?.id);
   const patch = (id: string, p: Partial<Animation>) => useDeck.getState().mutate(d => { const a = findSlide(d, slide.id)?.animations.find(a => a.id === id); if (a) Object.assign(a, p); });
@@ -23,20 +56,135 @@ export function Inspector({ mode, onMode }: { mode: string; onMode: (s: string) 
   const st = useDeck(), slide = currentSlide(st);
   const el = slide.elements.find(e => st.selectedElementIds.includes(e.id));
   const update = (p: Record<string, unknown>) => st.updateElements(st.selectedElementIds, p, "inspector");
+  const selectedShapeIds = slide.elements.filter(item => item.type === "shape" && st.selectedElementIds.includes(item.id)).map(item => item.id);
+  const updateShapes = (p: Record<string, unknown>) => { if (selectedShapeIds.length) st.updateElements(selectedShapeIds, p, "shape-inspector"); };
   const patchSlide = (p: Partial<Slide>) => st.mutate(d => { const s = findSlide(d, slide.id); if (s) Object.assign(s, p); });
-  return <aside className="inspector scrollbar-thin"><div className="inspector-heading"><span>Inspector</span><span className="text-[10px] uppercase text-muted-foreground">{el?.type ?? "Slide"}</span></div><div className="inspector-tabs">{["Properties", "Motion", "Layers"].map(m => <Button key={m} variant="ghost" size="sm" className={mode === m ? "active-tab" : ""} onClick={() => onMode(m)}>{m}</Button>)}</div>
-    {mode === "Layers" ? <div className="p-3"><div className="section-label mb-3"><Layers size={14} /> Objects · {slide.elements.length}</div>{[...slide.elements].reverse().map(e => <div key={e.id} className={`layer-row ${st.selectedElementIds.includes(e.id) ? "selected-layer" : ""}`}><Button variant="ghost" className="min-w-0 flex-1 justify-start truncate" onClick={() => st.selectElements([e.id])}>{e.name}</Button><Button variant="ghost" size="icon" title="Toggle visibility" onClick={() => st.updateElements([e.id], { hidden: !e.hidden })}><Eye className={e.hidden ? "opacity-30" : ""} /></Button><Button variant="ghost" size="icon" title="Toggle lock" onClick={() => st.updateElements([e.id], { locked: !e.locked })}><Lock className={e.locked ? "" : "opacity-30"} /></Button></div>)}</div> : mode === "Motion" ? <><section className="inspector-section"><h3>Slide transition</h3><TransitionControls slide={slide} /></section><section className="inspector-section"><h3>Object animation</h3><AnimationControls slide={slide} el={el} /></section></> : <>
-      <section className="inspector-section"><div className="flex items-center justify-between"><h3>{el ? "Transform" : "Slide settings"}</h3>{el && <span className="selection-count">{st.selectedElementIds.length} selected</span>}</div>
-        {el ? <><Field label="Object name"><input value={el.name} onChange={e => update({ name: e.target.value })} /></Field><div className="property-grid"><Numeric label="X" value={el.x} onChange={x => update({ x })} /><Numeric label="Y" value={el.y} onChange={y => update({ y })} /><Numeric label="Width" value={el.w} min={40} onChange={w => update({ w })} /><Numeric label="Height" value={el.h} min={40} onChange={h => update({ h })} /><Numeric label="Rotation" value={el.rotation} onChange={rotation => update({ rotation })} /><Numeric label="Opacity (%)" value={el.opacity * 100} min={0} max={100} onChange={v => update({ opacity: v / 100 })} /></div></> : <><Field label="Slide name"><input value={slide.name} onChange={e => patchSlide({ name: e.target.value })} /></Field><Field label="Background"><input aria-label="Background color" type="color" value={slide.background.color.startsWith("#") ? slide.background.color : "#151515"} onChange={e => patchSlide({ background: { ...slide.background, type: "solid", color: e.target.value } })} /></Field><Numeric label="Auto advance (seconds)" value={slide.autoAdvance} min={0} onChange={autoAdvance => patchSlide({ autoAdvance })} /><div className="property-grid"><Field label="Width"><input disabled value={st.deck.width} /></Field><Field label="Height"><input disabled value={st.deck.height} /></Field></div></>}
+  const patchBackground = (p: Partial<Background>) => patchSlide({ background: { ...slide.background, ...p } });
+  const backgroundColors = normalizeGradientColors(slide.background.gradientColors, slide.background.color, slide.background.color2);
+  const shapeColors = el?.type === "shape" ? normalizeGradientColors(el.gradientColors, el.fill, el.fill2) : ["#6366f1", "#22d3ee"];
+
+  return <aside className="inspector scrollbar-thin">
+    <div className="inspector-heading"><span>Inspector</span><span className="text-[10px] uppercase text-muted-foreground">{mode === "Slide customisation" ? "Slide" : el?.type ?? "Slide"}</span></div>
+    <div className="inspector-tabs">{["Properties", "Slide customisation", "Motion", "Layers"].map(m => <Button key={m} variant="ghost" size="sm" className={mode === m ? "active-tab" : ""} onClick={() => onMode(m)}>{m}</Button>)}</div>
+
+    {mode === "Layers" ? <div className="p-3">
+      <div className="section-label mb-3"><Layers size={14} /> Objects · {slide.elements.length}</div>
+      {[...slide.elements].reverse().map(e => <div key={e.id} className={`layer-row ${st.selectedElementIds.includes(e.id) ? "selected-layer" : ""}`}>
+        <Button variant="ghost" className="min-w-0 flex-1 justify-start truncate" onClick={() => st.selectElements(e.groupId ? slide.elements.filter(item => item.groupId === e.groupId).map(item => item.id) : [e.id])}>{e.name}</Button>
+        <Button variant="ghost" size="icon" title="Toggle visibility" onClick={() => st.updateElements([e.id], { hidden: !e.hidden })}><Eye className={e.hidden ? "opacity-30" : ""} /></Button>
+        <Button variant="ghost" size="icon" title="Toggle lock" onClick={() => st.updateElements([e.id], { locked: !e.locked })}><Lock className={e.locked ? "" : "opacity-30"} /></Button>
+      </div>)}
+    </div> : mode === "Slide customisation" ? <>
+      <section className="inspector-section">
+        <h3>Slide customisation</h3>
+        <Field label="Slide name"><input value={slide.name} onChange={e => patchSlide({ name: e.target.value })} /></Field>
+        <Field label="Section label"><input placeholder="Optional section name" value={slide.section ?? ""} onChange={e => patchSlide({ section: e.target.value || undefined })} /></Field>
+        <div className="property-grid">
+          <Field label="Automatic advance"><select value={slide.autoAdvance > 0 ? "on" : "off"} onChange={e => patchSlide({ autoAdvance: e.target.value === "on" ? Math.max(1, slide.autoAdvance || 5) : 0 })}><option value="off">Off</option><option value="on">On</option></select></Field>
+          <Field label="Slide visibility"><select value={slide.hidden ? "hidden" : "visible"} onChange={e => patchSlide({ hidden: e.target.value === "hidden" })}><option value="visible">Visible</option><option value="hidden">Hidden</option></select></Field>
+        </div>
+        {slide.autoAdvance > 0 && <Numeric label="Advance after (seconds)" value={slide.autoAdvance} min={0.5} max={3600} onChange={autoAdvance => patchSlide({ autoAdvance })} />}
+        <div className="property-grid">
+          <Field label="Slide width"><input disabled value={st.deck.width} /></Field>
+          <Field label="Slide height"><input disabled value={st.deck.height} /></Field>
+        </div>
+        <p className="text-[10px] text-muted-foreground">Change the canvas dimensions from Design → Slide size.</p>
       </section>
-      {el?.type === "text" && <section className="inspector-section"><h3>Typography</h3><Field label="Font family"><select value={el.fontFamily} onChange={e => { loadWebFont(e.target.value); update({ fontFamily: e.target.value }); }}>{FONT_CATALOGUE.map(f => <option key={f.family}>{f.family}</option>)}</select></Field><div className="property-grid"><Numeric label="Font size" value={el.fontSize} min={8} onChange={fontSize => update({ fontSize })} /><Field label="Weight"><select value={el.fontWeight} onChange={e => update({ fontWeight: Number(e.target.value) })}>{[400, 500, 600, 700].map(w => <option key={w} value={w}>{w}</option>)}</select></Field></div><div className="flex gap-1">{[{ Icon: Bold, key: "fontWeight", active: el.fontWeight === 700, value: el.fontWeight === 700 ? 400 : 700 }, { Icon: Italic, key: "italic", active: el.italic, value: !el.italic }, { Icon: Underline, key: "underline", active: el.underline, value: !el.underline }].map(({ Icon, key, active, value }) => <Button key={key} title={key} size="icon" variant={active ? "secondary" : "ghost"} onClick={() => update({ [key]: value })}><Icon /></Button>)}<span className="mx-1 border-l border-border" />{[{ Icon: AlignLeft, value: "left" }, { Icon: AlignCenter, value: "center" }, { Icon: AlignRight, value: "right" }].map(({ Icon, value }) => <Button key={value} title={`Align ${value}`} size="icon" variant={el.align === value ? "secondary" : "ghost"} onClick={() => update({ align: value })}><Icon /></Button>)}</div><Field label="Text color"><input type="color" value={el.color} onChange={e => update({ color: e.target.value })} /></Field><Field label="Text"><textarea aria-label="Object text" rows={4} value={el.text} onChange={e => update({ text: e.target.value })} /></Field><Numeric label="Line height" value={el.lineHeight} min={0.5} max={4} onChange={lineHeight => update({ lineHeight })} /></section>}
-      {el?.type === "shape" && <section className="inspector-section"><h3>Appearance</h3><Field label="Fill"><input type="color" value={el.fill === "transparent" ? "#000000" : el.fill} onChange={e => update({ fill: e.target.value })} /></Field><Field label="Label"><input value={el.text} onChange={e => update({ text: e.target.value })} /></Field><Numeric label="Corner radius" value={el.radius} min={0} onChange={radius => update({ radius })} /></section>}
-      {el && <section className="inspector-section"><h3>Interaction</h3><Field label="Hyperlink"><input type="url" placeholder="https://example.com" value={el.hyperlink ?? ""} onChange={e => update({ hyperlink: e.target.value })} /></Field><p className="text-[10px] text-muted-foreground">Opens in a new tab when this object is clicked during the presentation.</p></section>}
+      <section className="inspector-section">
+        <h3>Background</h3>
+        <Field label="Background style"><select value={slide.background.type} onChange={e => patchBackground({ type: e.target.value as Background["type"] })}><option value="solid">Solid colour</option><option value="gradient">Gradient</option><option value="image">Image</option></select></Field>
+        {slide.background.type === "solid" && <Field label="Background colour"><input aria-label="Background colour" type="color" value={slide.background.color.startsWith("#") ? slide.background.color : "#151515"} onChange={e => patchBackground({ color: e.target.value })} /></Field>}
+        {slide.background.type === "image" && <>
+          <Field label="Image URL"><input type="url" placeholder="https://…" value={slide.background.image} onChange={e => patchBackground({ image: e.target.value })} /></Field>
+          <Field label="Image fit"><select value={slide.background.imageFit} onChange={e => patchBackground({ imageFit: e.target.value as Background["imageFit"] })}><option value="cover">Cover</option><option value="contain">Contain</option></select></Field>
+        </>}
+        {slide.background.type === "gradient" && <GradientEditor
+          colors={backgroundColors}
+          angle={slide.background.angle}
+          type={slide.background.gradientType ?? "linear"}
+          onTypeChange={gradientType => patchBackground({ gradientType })}
+          onAngleChange={angle => patchBackground({ angle })}
+          onColorsChange={gradientColors => patchBackground({ gradientColors, color: gradientColors[0] ?? slide.background.color, color2: gradientColors[gradientColors.length - 1] ?? slide.background.color2 })}
+        />}
+      </section>
+      <section className="inspector-section">
+        <h3>Slide transition</h3>
+        <TransitionControls slide={slide} />
+      </section>
+      <section className="inspector-section">
+        <h3>Speaker notes</h3>
+        <Field label="Notes"><textarea rows={5} value={slide.notes} onChange={e => patchSlide({ notes: e.target.value })} placeholder="Notes for this slide…" /></Field>
+      </section>
+    </> : mode === "Motion" ? <>
+      <section className="inspector-section"><h3>Slide transition</h3><TransitionControls slide={slide} /></section>
+      <section className="inspector-section"><h3>Object animation</h3><AnimationControls slide={slide} el={el} /></section>
+    </> : <>
+      <section className="inspector-section">
+        <div className="flex items-center justify-between"><h3>{el ? "Transform" : "Slide settings"}</h3>{el && <span className="selection-count">{st.selectedElementIds.length} selected</span>}</div>
+        {el ? <>
+          <Field label="Object name"><input value={el.name} onChange={e => update({ name: e.target.value })} /></Field>
+          <div className="property-grid">
+            <Numeric label="X" value={el.x} onChange={x => update({ x })} />
+            <Numeric label="Y" value={el.y} onChange={y => update({ y })} />
+            <Numeric label="Width" value={el.w} min={40} onChange={w => update({ w })} />
+            <Numeric label="Height" value={el.h} min={40} onChange={h => update({ h })} />
+            <Numeric label="Rotation" value={el.rotation} onChange={rotation => update({ rotation })} />
+            <Numeric label="Opacity (%)" value={el.opacity * 100} min={0} max={100} onChange={v => update({ opacity: v / 100 })} />
+          </div>
+        </> : <>
+          <p className="text-[10px] text-muted-foreground">Choose the Slide customisation tab for slide background, automatic advance, visibility, notes and transition settings.</p>
+          <Field label="Slide name"><input value={slide.name} onChange={e => patchSlide({ name: e.target.value })} /></Field>
+        </>}
+      </section>
+
+      {el?.type === "text" && <section className="inspector-section">
+        <h3>Typography</h3>
+        <Field label="Font family"><select value={el.fontFamily} onChange={e => { loadWebFont(e.target.value); update({ fontFamily: e.target.value }); }}>{FONT_CATALOGUE.map(f => <option key={f.family}>{f.family}</option>)}</select></Field>
+        <div className="property-grid">
+          <Numeric label="Font size" value={el.fontSize} min={8} onChange={fontSize => update({ fontSize })} />
+          <Field label="Weight"><select value={el.fontWeight} onChange={e => update({ fontWeight: Number(e.target.value) })}>{[400, 500, 600, 700].map(w => <option key={w} value={w}>{w}</option>)}</select></Field>
+        </div>
+        <div className="flex gap-1">{[{ Icon: Bold, key: "fontWeight", active: el.fontWeight === 700, value: el.fontWeight === 700 ? 400 : 700 }, { Icon: Italic, key: "italic", active: el.italic, value: !el.italic }, { Icon: Underline, key: "underline", active: el.underline, value: !el.underline }].map(({ Icon, key, active, value }) => <Button key={key} title={key} size="icon" variant={active ? "secondary" : "ghost"} onClick={() => update({ [key]: value })}><Icon /></Button>)}<span className="mx-1 border-l border-border" />{[{ Icon: AlignLeft, value: "left" }, { Icon: AlignCenter, value: "center" }, { Icon: AlignRight, value: "right" }].map(({ Icon, value }) => <Button key={value} title={`Align ${value}`} size="icon" variant={el.align === value ? "secondary" : "ghost"} onClick={() => update({ align: value })}><Icon /></Button>)}</div>
+        <Field label="Text color"><input type="color" value={el.color} onChange={e => update({ color: e.target.value })} /></Field>
+        <Field label="Text"><textarea aria-label="Object text" rows={4} value={el.text} onChange={e => update({ text: e.target.value })} /></Field>
+        <Numeric label="Line height" value={el.lineHeight} min={0.5} max={4} onChange={lineHeight => update({ lineHeight })} />
+      </section>}
+
+      {el?.type === "shape" && <section className="inspector-section">
+        <h3>Appearance</h3>
+        <Field label="Fill style"><select value={el.gradient ? "gradient" : "solid"} onChange={e => {
+          const gradient = e.target.value === "gradient";
+          updateShapes(gradient ? {
+            gradient: true,
+            gradientType: el.gradientType ?? "linear",
+            gradientColors: shapeColors,
+            gradientAngle: el.gradientAngle ?? 135,
+            fill: shapeColors[0] ?? el.fill,
+            fill2: shapeColors[shapeColors.length - 1] ?? el.fill2,
+          } : { gradient: false });
+        }}><option value="solid">Solid colour</option><option value="gradient">Gradient</option></select></Field>
+        {el.gradient ? <GradientEditor
+          colors={shapeColors}
+          angle={el.gradientAngle}
+          type={el.gradientType ?? "linear"}
+          onTypeChange={gradientType => updateShapes({ gradientType })}
+          onAngleChange={gradientAngle => updateShapes({ gradientAngle })}
+          onColorsChange={gradientColors => updateShapes({ gradientColors, fill: gradientColors[0] ?? el.fill, fill2: gradientColors[gradientColors.length - 1] ?? el.fill2 })}
+        /> : <Field label="Fill colour"><input type="color" value={el.fill === "transparent" ? "#000000" : el.fill} onChange={e => updateShapes({ fill: e.target.value })} /></Field>}
+        <Field label="Label"><input value={el.text} onChange={e => updateShapes({ text: e.target.value })} /></Field>
+        <Numeric label="Corner radius" value={el.radius} min={0} onChange={radius => updateShapes({ radius })} />
+      </section>}
+
+      {el && <section className="inspector-section">
+        <h3>Interaction</h3>
+        <Field label="Hyperlink"><input type="url" placeholder="https://example.com" value={el.hyperlink ?? ""} onChange={e => update({ hyperlink: e.target.value })} /></Field>
+        <p className="text-[10px] text-muted-foreground">Opens in a new tab when this object is clicked during the presentation.</p>
+      </section>}
       {el?.type === "image" && <section className="inspector-section"><h3>Image</h3><Field label="Fit"><select value={el.fit} onChange={e => update({ fit: e.target.value })}>{["cover", "contain", "fill"].map(v => <option key={v}>{v}</option>)}</select></Field>{(["brightness", "contrast", "saturation"] as const).map(k => <Field key={k} label={k}><input type="range" aria-label={k} min={-100} max={100} value={el.adjust[k]} onChange={e => update({ adjust: { ...el.adjust, [k]: Number(e.target.value) } })} /></Field>)}</section>}
       {el?.type === "chart" && <section className="inspector-section"><h3>Chart data</h3><Field label="Title"><input value={el.title} onChange={e => update({ title: e.target.value })} /></Field>{el.data.map((d, i) => <div className="property-grid" key={i}><Field label={`Label ${i + 1}`}><input value={d.label} onChange={e => update({ data: el.data.map((x, n) => n === i ? { ...x, label: e.target.value } : x) })} /></Field><Numeric label={`Value ${i + 1}`} value={d.value} onChange={value => update({ data: el.data.map((x, n) => n === i ? { ...x, value } : x) })} /></div>)}</section>}
       {el && <section className="inspector-section"><h3>Arrange</h3><div className="flex gap-1"><Button title="Bring forward" variant="ghost" size="icon" onClick={() => st.reorderElement(el.id, "forward")}><ChevronUp /></Button><Button title="Send backward" variant="ghost" size="icon" onClick={() => st.reorderElement(el.id, "backward")}><ChevronDown /></Button><Button title="Duplicate object" variant="ghost" size="icon" onClick={st.duplicateSelected}><Copy /></Button><Button title="Delete object" variant="ghost" size="icon" onClick={st.deleteSelected}><Trash2 /></Button></div></section>}
-      {!el && <section className="inspector-section"><h3>Transition</h3><TransitionControls slide={slide} /></section>}
     </>}
+
     <div className="inspector-footer"><span className="status-dot" /> Local workspace</div>
   </aside>;
 }

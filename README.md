@@ -39,7 +39,15 @@ GitHub Actions runs the same checks on pushes to `main` and feature branches, an
 | `Shift + Arrow` | Move selected objects by a larger increment |
 | `Escape` | Exit presentation or clear selection |
 
-Right-click a slide thumbnail to add a slide after it, duplicate it, or delete it.
+Right-click a slide thumbnail to add a slide after it, duplicate it, or delete it. The duplicate control beside each thumbnail and `Ctrl/Cmd + D` also duplicate the current slide when no objects are selected.
+
+## Slide and object editing
+
+- Use the **Shapes** dropdown on Home or Insert to choose from the shape gallery.
+- Drag objects to snap to slide edges/centres and to alignment points on other objects; cyan guides show active alignments.
+- Selected objects have eight resize handles. Hold `Shift` while dragging a handle to preserve the original aspect ratio.
+- The Inspector's **Slide customisation** tab contains slide-level settings, including automatic advance, visibility, backgrounds, transitions, and speaker notes.
+- Backgrounds and shapes support up to six gradient colours, multiple gradient styles, and rotation. Grouped shapes share one gradient coordinate field across the group's bounds.
 
 ## Project structure
 

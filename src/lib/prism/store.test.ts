@@ -57,6 +57,49 @@ describe("PrismDeck editor store", () => {
     expect(duplicates[0]?.groupId).not.toBe(originalGroupId);
   });
 
+  it("duplicates a slide with fresh slide, object, animation, and group IDs", () => {
+    const state = useDeck.getState();
+    const source = state.deck.slides[0]!;
+    const first = makeText({ name: "Grouped title" });
+    const second = makeText({ name: "Grouped subtitle" });
+    state.mutate((deck) => {
+      deck.slides[0]!.elements.push(first, second);
+      deck.slides[0]!.animations.push({
+        id: "animation-source",
+        elementId: first.id,
+        kind: "entrance",
+        effect: "fadeIn",
+        duration: 400,
+        delay: 0,
+        easing: "linear",
+        direction: "up",
+        trigger: "onClick",
+      });
+    });
+    useDeck.getState().selectElements([first.id, second.id]);
+    useDeck.getState().groupElements();
+    const sourceNow = useDeck.getState().deck.slides[0]!;
+    const sourceGroup = sourceNow.elements.find((item) => item.id === first.id)?.groupId;
+    useDeck.getState().selectSlide(source.id);
+
+    const duplicatedId = useDeck.getState().duplicateSlides([source.id]);
+    const after = useDeck.getState();
+    const copy = after.deck.slides.find((item) => item.id === duplicatedId);
+    expect(duplicatedId).toBeTruthy();
+    expect(after.deck.slides).toHaveLength(2);
+    expect(after.currentSlideId).toBe(duplicatedId);
+    expect(after.selectedSlideIds).toEqual([duplicatedId]);
+    expect(copy?.id).not.toBe(source.id);
+    expect(copy?.elements).toHaveLength(2);
+    expect(copy?.elements[0]?.id).not.toBe(first.id);
+    expect(copy?.elements[0]?.groupId).toBeTruthy();
+    expect(copy?.elements[0]?.groupId).toBe(copy?.elements[1]?.groupId);
+    expect(copy?.elements[0]?.groupId).not.toBe(sourceGroup);
+    expect(copy?.animations).toHaveLength(1);
+    expect(copy?.animations[0]?.elementId).toBe(copy?.elements[0]?.id);
+    expect(copy?.animations[0]?.id).not.toBe("animation-source");
+  });
+
   it("keeps the clicked slide active when extending a range selection", () => {
     const deck = createDeck(3);
     useDeck.getState().loadDeck(deck);

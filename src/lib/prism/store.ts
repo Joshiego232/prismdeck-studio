@@ -36,7 +36,7 @@ export interface DeckState {
   setEditingText: (id: string | null) => void;
 
   addSlide: (after?: string, s?: Slide) => string;
-  duplicateSlides: (ids?: string[]) => void;
+  duplicateSlides: (ids?: string[]) => string | null;
   deleteSlides: (ids?: string[]) => void;
   moveSlides: (ids: string[], toIndex: number) => void;
 
@@ -142,16 +142,24 @@ export const useDeck = create<DeckState>()((set, get) => {
       return slide.id;
     },
     duplicateSlides: (ids) => {
-      const sel = ids ?? get().selectedSlideIds;
-      let lastId = "";
+      const state = get();
+      const requested = new Set(ids ?? state.selectedSlideIds);
+      const sourceSlides = state.deck.slides.filter((slide) => requested.has(slide.id));
+      if (!sourceSlides.length) return null;
+      const copies = new Map(sourceSlides.map((slide) => [slide.id, cloneSlide(slide)]));
+      let lastId: string | null = null;
       get().mutate((d) => {
-        for (const id of sel) {
-          const i = d.slides.findIndex((x) => x.id === id); if (i < 0) continue;
-          const c = cloneSlide(d.slides[i] as Slide); lastId = c.id;
-          d.slides.splice(i + 1, 0, c);
+        // Work in document order and locate each original again after every insertion.
+        for (const source of sourceSlides) {
+          const index = d.slides.findIndex((slide) => slide.id === source.id);
+          const copy = copies.get(source.id);
+          if (index < 0 || !copy) continue;
+          d.slides.splice(index + 1, 0, copy);
+          lastId = copy.id;
         }
       });
       if (lastId) get().selectSlide(lastId);
+      return lastId;
     },
     deleteSlides: (ids) => {
       const sel = new Set(ids ?? get().selectedSlideIds);
