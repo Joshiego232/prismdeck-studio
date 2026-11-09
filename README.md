@@ -65,3 +65,7 @@ The app stores project documents in browser local storage and uploaded assets in
 ## License
 
 No license has been assigned. All rights remain with the project owner unless a license is added.
+
+## Staged capabilities
+
+Future remembered-position snapping, reusable custom group shapes, a pro stick-figure animation workspace, and Bible verse insertion have preparatory code contracts only. They are intentionally disabled and have no user-facing controls until explicitly authorized. See `STAGED_FEATURES.md`.
