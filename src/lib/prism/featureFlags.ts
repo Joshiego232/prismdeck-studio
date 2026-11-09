@@ -7,13 +7,11 @@
 export type StagedFeature =
   | "rememberedPositionSnapping"
   | "customShapeLibrary"
-  | "stickFigureAnimationStudio"
   | "bibleVerseInserter";
 
 export const FEATURE_FLAGS: Readonly<Record<StagedFeature, boolean>> = Object.freeze({
   rememberedPositionSnapping: true,
   customShapeLibrary: true,
-  stickFigureAnimationStudio: true,
   bibleVerseInserter: false,
 });
 
