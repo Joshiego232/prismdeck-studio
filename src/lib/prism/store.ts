@@ -136,7 +136,10 @@ export const useDeck = create<DeckState>()((set, get) => {
       }
       if (mode === "toggle") {
         const selected = new Set(st.selectedElementIds);
-        for (const id of uniqueIds) selected.has(id) ? selected.delete(id) : selected.add(id);
+        for (const id of uniqueIds) {
+          if (selected.has(id)) selected.delete(id);
+          else selected.add(id);
+        }
         const selectedElementIds = [...selected];
         return { selectedElementIds, editingTextId: selectedElementIds.includes(st.editingTextId ?? "") ? st.editingTextId : null };
       }
