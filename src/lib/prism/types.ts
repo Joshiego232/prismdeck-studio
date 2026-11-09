@@ -7,6 +7,8 @@ export type ShapeKind =
   | "chevron" | "callout" | "line" | "arrow" | "pentagon" | "hexagon" | "octagon"
   | "trapezoid" | "parallelogram" | "rightTriangle" | "plus" | "cross" | "heart" | "cloud";
 
+export type GradientType = "linear" | "radial" | "reverse-radial" | "conic" | "diamond";
+
 export const SHAPE_KINDS: ShapeKind[] = [
   "rect", "roundRect", "ellipse", "triangle", "rightTriangle", "diamond", "pentagon",
   "hexagon", "octagon", "trapezoid", "parallelogram", "star", "chevron", "callout",
@@ -64,6 +66,8 @@ export interface ShapeEl extends BaseEl {
   fill2: string;
   gradient: boolean;
   gradientAngle: number;
+  gradientType?: GradientType;
+  gradientColors?: string[];
   stroke: string;
   strokeWidth: number;
   dash: "solid" | "dashed" | "dotted";
@@ -148,6 +152,8 @@ export interface Background {
   color: string;
   color2: string;
   angle: number;
+  gradientType?: GradientType;
+  gradientColors?: string[];
   image: string;
   imageFit: "cover" | "contain";
 }
