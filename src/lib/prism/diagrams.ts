@@ -47,14 +47,15 @@ export function createDiagramElements(kind: DiagramKind, inputLabels: string[], 
       x += nodeW + gap;
     });
   } else if (kind === "timeline") {
-    const gap = 92, total = labels.length * 245 + (labels.length - 1) * gap;
+    const gap = 38, boxWidth = Math.min(245, Math.floor((deckWidth - 180 - (labels.length - 1) * gap) / labels.length));
+    const total = labels.length * boxWidth + (labels.length - 1) * gap;
     const x = cx - total / 2;
     elements.push(makeShape("line", { name: "Timeline axis", x, y: cy, w: total, h: 10, stroke: "#94a3b8", strokeWidth: 8, groupId }));
     labels.forEach((label, i) => {
-      const boxX = x + i * (245 + gap);
-      elements.push(node(label, boxX, cy - 150, 245, 108, groupId, i));
-      elements.push(makeShape("line", { name: "Timeline marker", x: boxX + 116, y: cy - 42, w: 8, h: 42, stroke: COLORS[i % COLORS.length]!, strokeWidth: 8, groupId }));
-      elements.push(makeShape("ellipse", { name: "Timeline milestone", x: boxX + 105, y: cy - 12, w: 30, h: 30, fill: COLORS[i % COLORS.length]!, stroke: "#ffffff", strokeWidth: 2, groupId }));
+      const boxX = x + i * (boxWidth + gap);
+      elements.push(node(label, boxX, cy - 150, boxWidth, 108, groupId, i));
+      elements.push(makeShape("line", { name: "Timeline marker", x: boxX + boxWidth / 2 - 4, y: cy - 42, w: 8, h: 42, stroke: COLORS[i % COLORS.length]!, strokeWidth: 8, groupId }));
+      elements.push(makeShape("ellipse", { name: "Timeline milestone", x: boxX + boxWidth / 2 - 15, y: cy - 12, w: 30, h: 30, fill: COLORS[i % COLORS.length]!, stroke: "#ffffff", strokeWidth: 2, groupId }));
     });
   } else if (kind === "hierarchy") {
     const root = labels[0]!;
