@@ -123,14 +123,13 @@ export function Inspector({ mode, onMode }: { mode: string; onMode: (s: string) 
     st.selectElements(ids, mode);
   };
   const renderLayerObject = (element: SlideElement) => <div key={element.id} draggable onDragStart={event => {
-    event.dataTransfer.setData("application/x-prism-layer", element.id);
+    event.dataTransfer.setData("application/x-prism-layer-ids", JSON.stringify([element.id]));
     event.dataTransfer.effectAllowed = "move";
     event.currentTarget.classList.add("layer-dragging");
   }} onDragEnd={event => event.currentTarget.classList.remove("layer-dragging")} onDragOver={event => event.preventDefault()} onDrop={event => {
     event.preventDefault();
-    const sourceId = event.dataTransfer.getData("application/x-prism-layer");
-    const targetIndex = slide.elements.findIndex(item => item.id === element.id);
-    if (sourceId && sourceId !== element.id && targetIndex >= 0) st.reorderElement(sourceId, targetIndex);
+    const sourceIds = JSON.parse(event.dataTransfer.getData("application/x-prism-layer-ids") || "[]") as string[];
+    if (sourceIds.length && !sourceIds.includes(element.id)) st.reorderElements(sourceIds, element.id);
   }} className={`layer-row layer-child layer-draggable ${st.selectedElementIds.includes(element.id) ? "selected-layer" : ""}`}>
     <span className="layer-drag-grip" title="Drag to reorder">⋮⋮</span>
     <Button variant="ghost" className="min-w-0 flex-1 justify-start truncate" onClick={event => selectLayerElements(event, [element.id])}>{element.name}</Button>
@@ -159,7 +158,7 @@ export function Inspector({ mode, onMode }: { mode: string; onMode: (s: string) 
         const groupClass = selectedCount === memberIds.length ? "selected-layer" : selectedCount > 0 ? "selected-layer-partial" : "";
         const expanded = expandedGroups.has(row.groupId);
         return <div key={row.groupId} className="layer-group">
-          <div className={`layer-row layer-group-row layer-draggable ${groupClass}`} draggable onDragStart={event => { const firstMember = row.members[0]; if (firstMember) event.dataTransfer.setData("application/x-prism-layer", firstMember.id); event.dataTransfer.effectAllowed = "move"; }} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); const sourceId = event.dataTransfer.getData("application/x-prism-layer"); const targetIndex = slide.elements.findIndex(item => item.id === memberIds[0]); if (sourceId && targetIndex >= 0) st.reorderElement(sourceId, targetIndex); }}>
+          <div className={`layer-row layer-group-row layer-draggable ${groupClass}`} draggable onDragStart={event => { event.dataTransfer.setData("application/x-prism-layer-ids", JSON.stringify(memberIds)); event.dataTransfer.effectAllowed = "move"; }} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); const sourceIds = JSON.parse(event.dataTransfer.getData("application/x-prism-layer-ids") || "[]") as string[]; if (sourceIds.length && !sourceIds.some(id => memberIds.includes(id)) && memberIds[0]) st.reorderElements(sourceIds, memberIds[0]); }}>
             <Button type="button" variant="ghost" size="icon" className="layer-expander" title={expanded ? "Collapse group" : "Expand group"} aria-label={expanded ? "Collapse group" : "Expand group"} aria-expanded={expanded} onClick={() => setExpandedGroups(current => {
               const n = new Set(current); if (n.has(row.groupId)) n.delete(row.groupId); else n.add(row.groupId); return n;
             })}>{expanded ? <ChevronDown /> : <ChevronRight />}</Button>
