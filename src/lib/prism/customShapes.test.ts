@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { makeShape } from "./factory";
-import { createCustomShapeDefinition, deleteCustomShape, instantiateCustomShape, listCustomShapes, saveCustomShape } from "./customShapes";
+import { createCustomShapeDefinition, deleteCustomShape, instantiateCustomShape, listCustomShapes, saveCustomShape, updateCustomShape } from "./customShapes";
 import { FEATURE_FLAGS } from "./featureFlags";
 
 describe("reusable custom-shape foundations", () => {
@@ -67,6 +67,19 @@ describe("reusable custom-shape foundations", () => {
     expect(listCustomShapes().some(shape => shape.id === definition.id)).toBe(true);
     expect(deleteCustomShape(definition.id)).toBe(true);
     expect(listCustomShapes().some(shape => shape.id === definition.id)).toBe(false);
+  });
+
+  it("renames and folders a library item without changing its artwork", () => {
+    const first = makeShape("star", { groupId: "folder-group", fill: "#aabbcc" });
+    const second = makeShape("ellipse", { groupId: "folder-group", x: 900 });
+    const definition = createCustomShapeDefinition([first, second], "Original name");
+    expect(saveCustomShape(definition)).toBe(true);
+    expect(updateCustomShape(definition.id, { name: "Renamed badge", folder: "Brand assets" })).toBe(true);
+    const updated = listCustomShapes().find(item => item.id === definition.id);
+    expect(updated?.name).toBe("Renamed badge");
+    expect(updated?.folder).toBe("Brand assets");
+    expect(updated?.elements[0]?.fill).toBe("#aabbcc");
+    expect(deleteCustomShape(definition.id)).toBe(true);
   });
 
   it("rejects selections that are not one complete multi-object group", () => {
