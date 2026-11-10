@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { ChartEl } from "@/lib/prism/types";
 
 const PALETTE = ["#22d3ee", "#818cf8", "#34d399", "#fbbf24", "#fb7185", "#a78bfa", "#38bdf8", "#f97316"];
@@ -17,7 +18,7 @@ function sectorPath(cx: number, cy: number, radius: number, start: number, end: 
   return `M ${cx} ${cy} L ${a.x} ${a.y} A ${radius} ${radius} 0 ${large} 1 ${b.x} ${b.y} Z`;
 }
 
-export function ChartRenderer({ chart }: { chart: ChartEl }) {
+function ChartRendererView({ chart }: { chart: ChartEl }) {
   const data = chart.data.filter(item => Number.isFinite(item.value));
   const max = Math.max(1, ...data.map(item => item.value));
   const min = Math.min(0, ...data.map(item => item.value));
@@ -77,3 +78,5 @@ export function ChartRenderer({ chart }: { chart: ChartEl }) {
     {chart.axisLabel && <small className="chart-axis-label">{chart.axisLabel}</small>}
   </div>;
 }
+
+export const ChartRenderer = memo(ChartRendererView);
