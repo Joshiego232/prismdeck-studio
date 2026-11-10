@@ -195,6 +195,7 @@ export interface SlideMaster {
   footerText: string;
   showAccentRule: boolean;
   showSlideNumber: boolean;
+  showTitlePlaceholder?: boolean;
 }
 
 export interface Deck {
