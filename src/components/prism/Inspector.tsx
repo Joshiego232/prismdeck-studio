@@ -80,6 +80,11 @@ export function AnimationControls({ slide, el }: { slide: Slide; el?: SlideEleme
       <div className="property-grid"><Numeric label="Duration (ms)" value={animation.duration} min={50} max={30000} onChange={duration => patch(animation.id, { duration })} /><Numeric label="Delay (ms)" value={animation.delay} min={0} max={30000} onChange={delay => patch(animation.id, { delay })} /></div>
       <div className="property-grid"><Numeric label="Repeat count" value={animation.repeatCount ?? 1} min={1} max={20} onChange={repeatCount => patch(animation.id, { repeatCount })} /><Field label="Direction"><select value={animation.direction} onChange={event => patch(animation.id, { direction: event.target.value as Animation["direction"] })}>{["left", "right", "up", "down"].map(direction => <option key={direction}>{direction}</option>)}</select></Field></div>
       <Field label="Easing"><select value={animation.easing} onChange={event => patch(animation.id, { easing: event.target.value })}>{EASINGS.map(easing => <option key={easing.value} value={easing.value}>{easing.label}</option>)}</select></Field>
+      <label className="flex items-center gap-2 text-[10px] text-muted-foreground"><input type="checkbox" checked={!!animation.motionPath?.length} onChange={event => patch(animation.id, { motionPath: event.target.checked ? [{ x: 0, y: 0 }, { x: 240, y: 0 }] : undefined })} /> Use custom motion path</label>
+      {animation.motionPath?.length && <div className="property-grid">
+        <Numeric label="Path end X (px)" value={animation.motionPath[1]?.x ?? 240} onChange={x => patch(animation.id, { motionPath: [{ x: 0, y: 0 }, { x, y: animation.motionPath?.[1]?.y ?? 0 }] })} />
+        <Numeric label="Path end Y (px)" value={animation.motionPath[1]?.y ?? 0} onChange={y => patch(animation.id, { motionPath: [{ x: 0, y: 0 }, { x: animation.motionPath?.[1]?.x ?? 240, y }] })} />
+      </div>}
       <label className="flex items-center gap-2 text-[10px] text-muted-foreground"><input type="checkbox" checked={animation.alternate ?? false} onChange={event => patch(animation.id, { alternate: event.target.checked })} /> Alternate direction on each repeat</label>
     </div>)}
   </>;
