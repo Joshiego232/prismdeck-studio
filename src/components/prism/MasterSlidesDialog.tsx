@@ -52,7 +52,7 @@ export function MasterSlidesDialog({ deck, slideId, onClose, onAdd, onPatch, onA
           </div>
           <div className="master-add-panel">
             <label htmlFor="master-layout">Add layout</label>
-            <select id="master-layout" defaultValue="title-content" onChange={event => addMaster(event.target.value as MasterLayout)}>
+            <select id="master-layout" value="" onChange={event => addMaster(event.target.value as MasterLayout)}>
               <option value="" disabled>Choose a layout…</option>
               {MASTER_LAYOUTS.map(layout => <option key={layout.id} value={layout.id}>{layout.name}</option>)}
             </select>
