@@ -252,7 +252,7 @@ export default function Studio({ slideIndex, step, print, presenterMode = false,
   };
   const addMaster = (master: SlideMaster) => {
     const theme = PRESENTATION_THEMES.find(item => item.id === st.deck.themeId) ?? PRESENTATION_THEMES[0]!;
-    const themed = { ...master, accentColor: theme.accent, titleColor: theme.foreground };
+    const themed = { ...master, backgroundColor: theme.background, accentColor: theme.accent, titleColor: theme.foreground };
     st.mutate(d => { d.masters ??= []; d.masters.push(themed); });
     toast.success(`Master “${themed.name}” created.`);
   };
@@ -282,8 +282,23 @@ export default function Studio({ slideIndex, step, print, presenterMode = false,
     st.mutate(d => {
       d.themeId = theme.id;
       for (const master of d.masters ?? []) {
+        master.backgroundColor = theme.background;
         master.accentColor = theme.accent;
         master.titleColor = theme.foreground;
+      }
+      for (const target of d.slides) {
+        if (target.background.type === "solid") target.background.color = theme.background;
+        for (const element of target.elements) {
+          if (element.type === "text" && element.color === "#f2f4ff") element.color = theme.foreground;
+          if (element.type === "shape" && element.fill === "#6366f1") {
+            element.fill = theme.accent;
+            if (element.gradientColors?.[0] === "#6366f1") element.gradientColors[0] = theme.accent;
+          }
+          if (element.type === "chart") {
+            if (element.color === "#22d3ee") element.color = theme.accent;
+            if (element.textColor === "#dfe3ff") element.textColor = theme.foreground;
+          }
+        }
       }
     });
     toast.success(`“${theme.name}” theme selected. New masters will use its palette.`);
