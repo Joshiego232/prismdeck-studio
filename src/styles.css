@@ -515,3 +515,21 @@
   .custom-shape-menu { width:calc(100vw - 24px); }
   .custom-shape-filters { grid-template-columns:1fr; }
 }
+
+/* Contextual object editing and panel productivity */
+.selection-context-toolbar { position:absolute; z-index:35; top:10px; left:50%; display:flex; align-items:center; gap:3px; transform:translateX(-50%); padding:4px 7px; border:1px solid var(--border); border-radius:8px; background:var(--panel); box-shadow:0 8px 25px rgba(0,0,0,.35); }
+.selection-context-toolbar>span { padding:0 8px; color:var(--muted-foreground); font:9px var(--font-mono); white-space:nowrap; }
+.selection-context-toolbar button { width:29px; height:29px; }
+.selection-context-toolbar button svg { width:14px; height:14px; }
+.layer-draggable { cursor:grab; }
+.layer-draggable:active { cursor:grabbing; }
+.layer-dragging { opacity:.42; }
+.layer-drag-grip { display:inline-flex; flex:none; align-items:center; justify-content:center; width:17px; color:var(--muted-foreground); font:700 12px var(--font-mono); letter-spacing:-4px; cursor:grab; }
+.layer-draggable:hover .layer-drag-grip { color:var(--primary); }
+.thumbnail-item { contain:layout style; }
+.slide-object { contain:layout style; }
+@media(max-width:600px) {
+  .selection-context-toolbar { top:5px; gap:0; padding:3px; }
+  .selection-context-toolbar>span { padding-inline:4px; font-size:8px; }
+  .selection-context-toolbar button { width:25px; height:25px; }
+}
