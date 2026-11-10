@@ -5,7 +5,7 @@ import type { Deck, MasterLayout, SlideMaster } from "@/lib/prism/types";
 import { cloneSlideMaster, createSlideMaster, MASTER_LAYOUTS } from "@/lib/prism/masters";
 import { PRESENTATION_THEMES } from "@/lib/prism/themes";
 
-type MasterPatch = Partial<Pick<SlideMaster, "name" | "backgroundColor" | "accentColor" | "titleColor" | "footerText" | "showAccentRule" | "showSlideNumber">>;
+type MasterPatch = Partial<Pick<SlideMaster, "name" | "backgroundColor" | "accentColor" | "titleColor" | "footerText" | "showAccentRule" | "showSlideNumber" | "showTitlePlaceholder">>;
 
 export function MasterSlidesDialog({ deck, slideId, onClose, onAdd, onPatch, onApply, onDelete, onThemeChange }: {
   deck: Deck;
@@ -78,6 +78,7 @@ export function MasterSlidesDialog({ deck, slideId, onClose, onAdd, onPatch, onA
             <label>Footer text<input value={selected.footerText} placeholder="Optional company, course or presentation footer" onChange={event => onPatch(selected.id, { footerText: event.target.value })} /></label>
             <div className="master-toggle-row">
               <label><input type="checkbox" checked={selected.showAccentRule} onChange={event => onPatch(selected.id, { showAccentRule: event.target.checked })} /> Accent rule</label>
+              <label><input type="checkbox" checked={selected.showTitlePlaceholder ?? false} onChange={event => onPatch(selected.id, { showTitlePlaceholder: event.target.checked })} /> Slide title</label>
               <label><input type="checkbox" checked={selected.showSlideNumber} onChange={event => onPatch(selected.id, { showSlideNumber: event.target.checked })} /> Slide number</label>
             </div>
             <div className="master-apply-row">
