@@ -12,6 +12,7 @@ export interface CustomShapeDefinition {
   elements: ShapeEl[];
   createdAt: number;
   updatedAt: number;
+  folder?: string;
 }
 
 function assertOneGroup(elements: ShapeEl[]): string {
@@ -112,4 +113,19 @@ export function saveCustomShape(definition: CustomShapeDefinition): boolean {
 export function deleteCustomShape(id: string): boolean {
   if (!isFeatureEnabled("customShapeLibrary")) return false;
   return writeStoredShapes(readStoredShapes().filter(shape => shape.id !== id));
+}
+
+
+/** Update a saved custom shape's name or library folder without changing its artwork. */
+export function updateCustomShape(id: string, patch: Pick<Partial<CustomShapeDefinition>, "name" | "folder">): boolean {
+  if (!isFeatureEnabled("customShapeLibrary")) return false;
+  const shapes = readStoredShapes();
+  const index = shapes.findIndex(shape => shape.id === id);
+  if (index < 0) return false;
+  const current = shapes[index]!;
+  const next = { ...current, ...patch, updatedAt: Date.now() };
+  if (typeof next.name === "string") next.name = next.name.trim() || current.name;
+  if (typeof next.folder === "string") next.folder = next.folder.trim();
+  shapes[index] = next;
+  return writeStoredShapes(shapes);
 }
