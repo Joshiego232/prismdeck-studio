@@ -32,6 +32,7 @@ export function applyPresentationTheme(deck: Deck, themeId: string): Deck {
     themeId: theme.id,
     masters: (deck.masters ?? []).map(master => ({
       ...master,
+      backgroundColor: theme.background,
       accentColor: theme.accent,
       titleColor: theme.foreground,
     })),
