@@ -18,6 +18,7 @@ export function MasterSlidesDialog({ deck, slideId, onClose, onAdd, onPatch, onA
   onThemeChange: (id: string) => void;
 }) {
   const masters = deck.masters ?? [];
+  const currentSlide = deck.slides.find(slide => slide.id === slideId);
   const [selectedId, setSelectedId] = useState(masters[0]?.id ?? "");
   const [scope, setScope] = useState<"current" | "all">("current");
   const selected = masters.find(master => master.id === selectedId) ?? masters[0];
@@ -67,6 +68,7 @@ export function MasterSlidesDialog({ deck, slideId, onClose, onAdd, onPatch, onA
           </div>
           {selected ? <section className="master-properties">
             <div className="master-section-heading"><strong>Selected master</strong><span>{MASTER_LAYOUTS.find(item => item.id === selected.layout)?.name ?? selected.layout}</span></div>
+            <p className="master-current-slide">Apply target: {currentSlide?.name ?? "Current slide"}</p>
             <label>Master name<input value={selected.name} onChange={event => onPatch(selected.id, { name: event.target.value })} /></label>
             <div className="master-colour-grid">
               <label>Background<input type="color" value={selected.backgroundColor} onChange={event => onPatch(selected.id, { backgroundColor: event.target.value })} /></label>
