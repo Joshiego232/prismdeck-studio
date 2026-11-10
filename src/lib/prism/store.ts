@@ -271,8 +271,9 @@ export const useDeck = create<DeckState>()((set, get) => {
       if (targetIndex < 0 || movingIds.has(beforeId)) return;
       const moving = s.elements.filter(item => movingIds.has(item.id));
       if (!moving.length) return;
-      const insertAt = s.elements.slice(0, targetIndex).filter(item => !movingIds.has(item.id)).length;
       s.elements = s.elements.filter(item => !movingIds.has(item.id));
+      const insertAt = s.elements.findIndex(item => item.id === beforeId);
+      if (insertAt < 0) return;
       s.elements.splice(insertAt, 0, ...moving);
     }),
     reorderElement: (id, where) => get().mutate((d) => {
