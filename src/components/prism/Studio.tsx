@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowUp, ArrowUpRight, BookmarkPlus, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Copy, Download, Grid2X2, ImagePlus, Layers, Maximize, MonitorPlay, MousePointer2, PanelLeftClose, PanelRightClose, Play, Plus, Redo2, Save, Settings2, Shapes, Square, StickyNote, Trash2, Type, Undo2, Video, X, ZoomIn, ZoomOut, Triangle, Sparkles, MoveRight, BarChart3, Palette, Network, AlignLeft, AlignCenter, AlignRight, ArrowLeftRight, ArrowUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpRight, BookmarkPlus, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Copy, Download, Grid2X2, ImagePlus, Layers, Maximize, MonitorPlay, MousePointer2, PanelLeftClose, PanelRightClose, Play, Plus, Redo2, Save, Settings2, Shapes, Square, StickyNote, Trash2, Type, Undo2, Video, X, ZoomIn, ZoomOut, Triangle, Sparkles, MoveRight, BarChart3, Palette, Network, AlignLeft, AlignCenter, AlignRight, ArrowLeftRight, ArrowUpDown, Pencil, Folder } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useDeck, currentSlide, findSlide, startAutosave, saveNow } from "@/lib/prism/store";
@@ -112,7 +112,7 @@ function CustomShapePreview({ shape }: { shape: CustomShapeDefinition }) {
         : item.shape === "ellipse"
           ? <ellipse cx={item.w / 2} cy={item.h / 2} rx={item.w / 2} ry={item.h / 2} fill={item.gradient ? `url(#custom-preview-${item.id})` : item.fill} stroke={item.stroke} strokeWidth={item.strokeWidth} />
           : polygon(item.shape)
-            ? <polygon points={polygon(item.shape).split(" ").map(point => { const [x,y]=point.split(",").map(Number); return `${(x ?? 0) * item.w / 100 + item.x},${(y ?? 0) * item.h / 100 + item.y}`; }).join(" ")} fill={item.gradient ? `url(#custom-preview-${item.id})` : item.fill} stroke={item.stroke} strokeWidth={item.strokeWidth} />
+            ? <polygon points={polygon(item.shape).split(" ").map(point => { const [x,y]=point.split(",").map(Number); return `${(x ?? 0) * item.w / 100},${(y ?? 0) * item.h / 100}`; }).join(" ")} fill={item.gradient ? `url(#custom-preview-${item.id})` : item.fill} stroke={item.stroke} strokeWidth={item.strokeWidth} />
             : <rect x="0" y="0" width={item.w} height={item.h} rx={Math.min(item.radius, item.w / 5, item.h / 5)} fill={item.gradient ? `url(#custom-preview-${item.id})` : item.fill} stroke={item.stroke} strokeWidth={item.strokeWidth} />}
       {item.text && <text x={item.w/2} y={item.h/2} fontSize={Math.min(item.fontSize, item.h/3)} fill={item.textColor} textAnchor="middle" dominantBaseline="middle">{item.text.slice(0,24)}</text>}
     </g>)}
@@ -180,8 +180,8 @@ function CustomShapePicker({ shapes, onInsert, onDelete, onRename, onMoveFolder 
               <span><strong>{shape.name}</strong><small>{shape.elements.length} objects · {Math.round(shape.width)} × {Math.round(shape.height)}</small><small className="custom-shape-folder">{shape.folder?.trim() || "Unfiled"}</small></span>
             </button>
             <div className="custom-shape-actions">
-              <Button type="button" variant="ghost" size="icon" title={`Rename ${shape.name}`} aria-label={`Rename ${shape.name}`} onClick={() => onRename(shape.id)}><Settings2 /></Button>
-              <Button type="button" variant="ghost" size="icon" title="Move to folder" aria-label="Move to folder" onClick={() => onMoveFolder(shape.id)}><Layers /></Button>
+              <Button type="button" variant="ghost" size="icon" title={`Rename ${shape.name}`} aria-label={`Rename ${shape.name}`} onClick={() => onRename(shape.id)}><Pencil /></Button>
+              <Button type="button" variant="ghost" size="icon" title="Move to folder" aria-label="Move to folder" onClick={() => onMoveFolder(shape.id)}><Folder /></Button>
               <Button type="button" variant="ghost" size="icon" title={`Delete ${shape.name}`} aria-label={`Delete ${shape.name}`} onClick={() => onDelete(shape.id)}><Trash2 /></Button>
             </div>
           </div>)}
