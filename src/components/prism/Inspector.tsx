@@ -257,9 +257,23 @@ export function Inspector({ mode, onMode }: { mode: string; onMode: (s: string) 
       </section>}
 
       {el && <section className="inspector-section">
-        <h3>Interaction</h3>
-        <Field label="Hyperlink"><input type="url" placeholder="https://example.com" value={el.hyperlink ?? ""} onChange={e => update({ hyperlink: e.target.value })} /></Field>
-        <p className="text-[10px] text-muted-foreground">Opens in a new tab when this object is clicked during the presentation.</p>
+        <h3>Interaction & navigation</h3>
+        <Field label="Click action"><select value={el.slideAction?.kind ?? "none"} onChange={event => {
+          const kind = event.target.value;
+          update({ slideAction: kind === "none" ? undefined : { kind: kind as NonNullable<typeof el.slideAction>["kind"] } });
+        }}>
+          <option value="none">No slide action</option>
+          <option value="next">Next slide</option>
+          <option value="previous">Previous slide</option>
+          <option value="first">First slide</option>
+          <option value="last">Last slide</option>
+          <option value="go-to">Go to specific slide</option>
+        </select></Field>
+        {el.slideAction?.kind === "go-to" && <Field label="Destination slide"><select value={el.slideAction.targetSlideId ?? ""} onChange={event => update({ slideAction: { kind: "go-to", targetSlideId: event.target.value } })}>
+          <option value="">Choose destination…</option>{st.deck.slides.map((item, index) => <option key={item.id} value={item.id}>{index + 1}. {item.name}</option>)}
+        </select></Field>}
+        <Field label="External hyperlink"><input type="url" placeholder="https://example.com" value={el.hyperlink ?? ""} onChange={event => update({ hyperlink: event.target.value || undefined })} /></Field>
+        <p className="text-[10px] text-muted-foreground">Actions activate when this object is clicked during a presentation. Slide actions take priority over external links.</p>
       </section>}
       {el?.type === "image" && <section className="inspector-section"><h3>Image</h3><Field label="Fit"><select value={el.fit} onChange={e => update({ fit: e.target.value })}>{["cover", "contain", "fill"].map(v => <option key={v}>{v}</option>)}</select></Field>{(["brightness", "contrast", "saturation"] as const).map(k => <Field key={k} label={k}><input type="range" aria-label={k} min={-100} max={100} value={el.adjust[k]} onChange={e => update({ adjust: { ...el.adjust, [k]: Number(e.target.value) } })} /></Field>)}</section>}
       {el?.type === "chart" && <section className="inspector-section">
