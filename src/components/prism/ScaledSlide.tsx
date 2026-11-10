@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { memo, useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import type { Deck, Slide, SlideElement, ShapeEl, TextEl, SlideAction } from "@/lib/prism/types";
 import { ChartRenderer } from "./ChartRenderer";
 import { getSharedGroupGradient } from "@/lib/prism/groupStyles";
@@ -40,6 +40,8 @@ function ElementContent({ el, presenting, fillStyle }: { el: SlideElement; prese
   };
   return <div className="flex h-full w-full items-center justify-center" style={{ background: fill, color: el.textColor, fontSize: el.fontSize, fontFamily: fontStack(el.fontFamily), border: `${el.strokeWidth}px ${el.dash === "solid" ? "solid" : el.dash} ${el.stroke}`, borderRadius: el.shape === "ellipse" ? "50%" : el.radius, clipPath: clip[el.shape], ...fillStyle }}>{el.text}</div>;
 }
+
+const MemoElementContent = memo(ElementContent);
 
 function TextContent({ el, presenting }: { el: TextEl; presenting: boolean }) {
   const editing = useDeck(s => s.editingTextId === el.id) && !presenting;
@@ -342,7 +344,7 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
             };
           }
           return <div key={el.id} data-element-id={el.id} data-object-name={el.name} className={`slide-object ${editable ? "editable-object" : ""} ${editable && selected.includes(el.id) ? "object-selected" : ""}`} style={{ left: el.x, top: el.y, width: el.w, height: el.h, transform: `rotate(${el.rotation}deg)`, opacity: el.opacity, cursor: presenting && (el.hyperlink || el.slideAction) ? "pointer" : undefined, filter: el.blur ? `blur(${el.blur}px)` : undefined, boxShadow: el.shadow.on ? `${el.shadow.x}px ${el.shadow.y}px ${el.shadow.blur}px ${el.shadow.color}` : undefined }} onPointerDown={e => manipulate(e, el, "move")} onClick={e => { if (!presenting) return; if (el.slideAction && onSlideAction) { e.stopPropagation(); onSlideAction(el.slideAction); return; } if (el.hyperlink) { e.stopPropagation(); const raw = el.hyperlink.trim(); const href = /^(https?:|mailto:|tel:)/i.test(raw) ? raw : `https://${raw}`; try { const parsed = new URL(href); if (["http:", "https:", "mailto:", "tel:"].includes(parsed.protocol)) window.open(href, "_blank", "noopener,noreferrer"); } catch { /* Ignore invalid presentation links. */ } } }} onDoubleClick={e => { if (editable && el.type === "text") { e.stopPropagation(); useDeck.getState().setEditingText(el.id); } }}>
-            <ElementContent el={el} presenting={presenting} fillStyle={groupFillStyle} />
+            <MemoElementContent el={el} presenting={presenting} fillStyle={groupFillStyle} />
             {editable && selected.includes(el.id) && <>
               {(["nw", "n", "ne", "e", "se", "s", "sw", "w"] as ResizeHandle[]).map(handle => <span key={handle} className="resize-handle" data-handle={handle} role="presentation" aria-label={`Resize ${handle}`} onPointerDown={e => manipulate(e, el, "resize", handle)} />)}
               <span className="rotate-handle" onPointerDown={e => manipulate(e, el, "rotate")} />
@@ -351,7 +353,7 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
         })}
         {editable && snapGuides.x !== null && <div className="snap-guide snap-guide-x" style={{ left: snapGuides.x }} />}
         {editable && snapGuides.y !== null && <div className="snap-guide snap-guide-y" style={{ top: snapGuides.y }} />}
-        {morphGhosts.map(ghost => <div key={`morph-${ghost.id}`} data-morph-ghost={ghost.id} className="slide-object morph-ghost" style={{ left: ghost.x, top: ghost.y, width: ghost.w, height: ghost.h, transform: `rotate(${ghost.rotation}deg)`, opacity: ghost.opacity, pointerEvents: "none" }}><ElementContent el={ghost} presenting={presenting} /></div>)}
+        {morphGhosts.map(ghost => <div key={`morph-${ghost.id}`} data-morph-ghost={ghost.id} className="slide-object morph-ghost" style={{ left: ghost.x, top: ghost.y, width: ghost.w, height: ghost.h, transform: `rotate(${ghost.rotation}deg)`, opacity: ghost.opacity, pointerEvents: "none" }}><MemoElementContent el={ghost} presenting={presenting} /></div>)}
       </div>
     </div>
   </div>;
