@@ -32,7 +32,7 @@ export function makeSlide(partial: Partial<Slide> = {}): Slide {
 export function makeDeck(name = "Untitled deck", slides?: Slide[]): Deck {
   const now = Date.now();
   return {
-    schema: DECK_SCHEMA_VERSION, id: uid("d_"), name, width: 1920, height: 1080,
+    schema: DECK_SCHEMA_VERSION, id: uid("d_"), name, width: 1920, height: 1080, themeId: "midnight", masters: [],
     slides: slides ?? [makeSlide({ name: "Title" })], createdAt: now, updatedAt: now,
   };
 }
@@ -99,7 +99,7 @@ export function makeChart(chartType: ChartEl["chartType"], p: Partial<ChartEl> =
       { label: "Q1", value: 32 }, { label: "Q2", value: 48 },
       { label: "Q3", value: 41 }, { label: "Q4", value: 67 },
     ],
-    color: "#22d3ee", textColor: "#dfe3ff",
+    color: "#22d3ee", textColor: "#dfe3ff", showLegend: true, showValues: false,
     ...p,
   } as ChartEl;
 }
