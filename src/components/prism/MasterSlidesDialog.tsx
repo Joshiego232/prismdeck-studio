@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Copy, Plus, Trash2, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Deck, MasterLayout, SlideMaster } from "@/lib/prism/types";
@@ -22,9 +22,9 @@ export function MasterSlidesDialog({ deck, slideId, onClose, onAdd, onPatch, onA
   const [selectedId, setSelectedId] = useState(masters[0]?.id ?? "");
   const [scope, setScope] = useState<"current" | "all">("current");
   const selected = masters.find(master => master.id === selectedId) ?? masters[0];
-  const assignedCount = useMemo(() => masters.map(master => ({
+  const assignedCount = masters.map(master => ({
     id: master.id, count: deck.slides.filter(slide => slide.masterId === master.id).length,
-  })), [masters, deck.slides]);
+  }));
 
   const addMaster = (layout: MasterLayout) => {
     const master = createSlideMaster(layout);
