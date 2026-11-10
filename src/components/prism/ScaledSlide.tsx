@@ -319,6 +319,7 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
           const slideNumber = deck.slides.findIndex(item => item.id === slide.id) + 1;
           return <div className={`master-frame master-layout-${master.layout}`} aria-hidden="true">
             {master.showAccentRule && <div className="master-accent-rule" style={{ background: master.accentColor }} />}
+            {master.showTitlePlaceholder && <div className={`master-title-placeholder master-title-${master.layout}`} style={{ color: master.titleColor }}>{slide.name}</div>}
             {master.footerText && <span style={{ color: master.titleColor }}>{master.footerText}</span>}
             {master.showSlideNumber && <span style={{ color: master.titleColor }}>{slideNumber}</span>}
           </div>;
