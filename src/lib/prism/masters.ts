@@ -29,6 +29,7 @@ export function createSlideMaster(layout: MasterLayout = "title-content", name?:
     footerText: "",
     showAccentRule: layout !== "minimal",
     showSlideNumber: false,
+    showTitlePlaceholder: layout === "title" || layout === "section",
   };
 }
 
