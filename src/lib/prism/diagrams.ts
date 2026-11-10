@@ -48,7 +48,7 @@ export function createDiagramElements(kind: DiagramKind, inputLabels: string[], 
     });
   } else if (kind === "timeline") {
     const gap = 92, total = labels.length * 245 + (labels.length - 1) * gap;
-    let x = cx - total / 2;
+    const x = cx - total / 2;
     elements.push(makeShape("line", { name: "Timeline axis", x, y: cy, w: total, h: 10, stroke: "#94a3b8", strokeWidth: 8, groupId }));
     labels.forEach((label, i) => {
       const boxX = x + i * (245 + gap);
