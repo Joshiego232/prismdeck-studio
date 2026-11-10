@@ -48,8 +48,40 @@ export function TransitionControls({ slide }: { slide: Slide }) {
 
 export function AnimationControls({ slide, el }: { slide: Slide; el?: SlideElement | undefined }) {
   const animations = slide.animations.filter(a => a.elementId === el?.id);
-  const patch = (id: string, p: Partial<Animation>) => useDeck.getState().mutate(d => { const a = findSlide(d, slide.id)?.animations.find(a => a.id === id); if (a) Object.assign(a, p); });
-  return <><Field label="Add animation"><select disabled={!el} value="" onChange={e => { const preset = ANIMATIONS.find(a => a.id === e.target.value); if (el && preset) useDeck.getState().mutate(d => findSlide(d, slide.id)?.animations.push(makeAnimation(el.id, preset.kind, preset.id))); }}><option value="">{el ? "Choose an effect…" : "Select an object"}</option>{ANIMATIONS.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}</select></Field>{animations.map((a, i) => <div className="animation-entry" key={a.id}><div className="flex items-center justify-between"><span className="text-xs font-medium">{i + 1}. {ANIMATIONS.find(p => p.id === a.effect)?.label ?? a.effect}</span><Button variant="ghost" size="icon" title="Remove animation" onClick={() => useDeck.getState().mutate(d => { const s = findSlide(d, slide.id); if (s) s.animations = s.animations.filter(x => x.id !== a.id); })}><Trash2 /></Button></div><Field label="Start"><select value={a.trigger} onChange={e => patch(a.id, { trigger: e.target.value as Animation["trigger"] })}><option value="onClick">On click</option><option value="withPrevious">With previous</option><option value="afterPrevious">After previous</option></select></Field><div className="property-grid"><Numeric label="Duration (ms)" value={a.duration} min={0} onChange={duration => patch(a.id, { duration })} /><Numeric label="Delay (ms)" value={a.delay} min={0} onChange={delay => patch(a.id, { delay })} /></div></div>)}</>;
+  const patch = (id: string, p: Partial<Animation>) => useDeck.getState().mutate(d => {
+    const animation = findSlide(d, slide.id)?.animations.find(item => item.id === id);
+    if (animation) Object.assign(animation, p);
+  });
+  const move = (id: string, direction: -1 | 1) => useDeck.getState().mutate(d => {
+    const current = findSlide(d, slide.id);
+    if (!current) return;
+    const from = current.animations.findIndex(item => item.id === id);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= current.animations.length) return;
+    [current.animations[from], current.animations[to]] = [current.animations[to]!, current.animations[from]!];
+  });
+  const remove = (id: string) => useDeck.getState().mutate(d => {
+    const current = findSlide(d, slide.id);
+    if (current) current.animations = current.animations.filter(item => item.id !== id);
+  });
+  return <>
+    <Field label="Add animation"><select disabled={!el} value="" onChange={event => {
+      const preset = ANIMATIONS.find(item => item.id === event.target.value);
+      if (el && preset) useDeck.getState().mutate(d => findSlide(d, slide.id)?.animations.push(makeAnimation(el.id, preset.kind, preset.id)));
+    }}><option value="">{el ? "Choose an effect…" : "Select an object"}</option>{ANIMATIONS.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></Field>
+    {animations.map((animation, index) => <div className="animation-entry" key={animation.id}>
+      <div className="flex items-center justify-between gap-2"><span className="text-xs font-medium">{index + 1}. {ANIMATIONS.find(item => item.id === animation.effect)?.label ?? animation.effect}</span><div className="flex items-center">
+        <Button title="Move animation earlier" variant="ghost" size="icon" disabled={index === 0} onClick={() => move(animation.id, -1)}><ChevronUp /></Button>
+        <Button title="Move animation later" variant="ghost" size="icon" disabled={index === animations.length - 1} onClick={() => move(animation.id, 1)}><ChevronDown /></Button>
+        <Button variant="ghost" size="icon" title="Remove animation" onClick={() => remove(animation.id)}><Trash2 /></Button>
+      </div></div>
+      <Field label="Start"><select value={animation.trigger} onChange={event => patch(animation.id, { trigger: event.target.value as Animation["trigger"] })}><option value="onClick">On click</option><option value="withPrevious">With previous</option><option value="afterPrevious">After previous</option></select></Field>
+      <div className="property-grid"><Numeric label="Duration (ms)" value={animation.duration} min={50} max={30000} onChange={duration => patch(animation.id, { duration })} /><Numeric label="Delay (ms)" value={animation.delay} min={0} max={30000} onChange={delay => patch(animation.id, { delay })} /></div>
+      <div className="property-grid"><Numeric label="Repeat count" value={animation.repeatCount ?? 1} min={1} max={20} onChange={repeatCount => patch(animation.id, { repeatCount })} /><Field label="Direction"><select value={animation.direction} onChange={event => patch(animation.id, { direction: event.target.value as Animation["direction"] })}>{["left", "right", "up", "down"].map(direction => <option key={direction}>{direction}</option>)}</select></Field></div>
+      <Field label="Easing"><select value={animation.easing} onChange={event => patch(animation.id, { easing: event.target.value })}>{EASINGS.map(easing => <option key={easing.value} value={easing.value}>{easing.label}</option>)}</select></Field>
+      <label className="flex items-center gap-2 text-[10px] text-muted-foreground"><input type="checkbox" checked={animation.alternate ?? false} onChange={event => patch(animation.id, { alternate: event.target.checked })} /> Alternate direction on each repeat</label>
+    </div>)}
+  </>;
 }
 
 export function Inspector({ mode, onMode }: { mode: string; onMode: (s: string) => void }) {
