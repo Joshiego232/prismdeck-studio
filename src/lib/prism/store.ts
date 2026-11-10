@@ -48,6 +48,7 @@ export interface DeckState {
   copySelected: () => void;
   paste: () => void;
   reorderElement: (id: string, where: "front" | "back" | "forward" | "backward" | number) => void;
+  reorderElements: (ids: string[], beforeId: string) => void;
   groupElements: (ids?: string[]) => void;
   ungroupElements: (ids?: string[]) => void;
 }
@@ -262,6 +263,18 @@ export const useDeck = create<DeckState>()((set, get) => {
       });
       set({ selectedElementIds: members });
     },
+    reorderElements: (ids, beforeId) => get().mutate(d => {
+      const s = findSlide(d, get().currentSlideId);
+      if (!s) return;
+      const movingIds = new Set(ids);
+      const targetIndex = s.elements.findIndex(item => item.id === beforeId);
+      if (targetIndex < 0 || movingIds.has(beforeId)) return;
+      const moving = s.elements.filter(item => movingIds.has(item.id));
+      if (!moving.length) return;
+      const insertAt = s.elements.slice(0, targetIndex).filter(item => !movingIds.has(item.id)).length;
+      s.elements = s.elements.filter(item => !movingIds.has(item.id));
+      s.elements.splice(insertAt, 0, ...moving);
+    }),
     reorderElement: (id, where) => get().mutate((d) => {
       const s = findSlide(d, get().currentSlideId); if (!s) return;
       const i = s.elements.findIndex((e) => e.id === id); if (i < 0) return;
