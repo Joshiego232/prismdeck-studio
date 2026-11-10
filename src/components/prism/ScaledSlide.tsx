@@ -121,7 +121,7 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
     for (const { anim, offset } of steps[step]?.items ?? []) {
       const node = el.querySelector<HTMLElement>(`[data-element-id="${anim.elementId}"]`);
       const object = slide.elements.find(e => e.id === anim.elementId);
-      if (node) { node.style.visibility = "visible"; animations.push(node.animate(animFrames(anim, object?.rotation), { duration: anim.duration, delay: anim.delay + offset, easing: anim.easing, fill: "both" })); }
+      if (node) { node.style.visibility = "visible"; animations.push(node.animate(animFrames(anim, object?.rotation), { duration: anim.duration, delay: anim.delay + offset, easing: anim.easing, iterations: Math.max(1, anim.repeatCount ?? 1), direction: anim.alternate ? "alternate" : "normal", fill: "both" })); }
     }
     return () => { animations.forEach(a => a.cancel()); el.querySelectorAll<HTMLElement>("[data-element-id]").forEach(n => n.style.visibility = ""); };
   }, [slide.id, presenting, step, previewKey, morphFrom]);
