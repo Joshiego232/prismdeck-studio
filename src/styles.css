@@ -533,3 +533,8 @@
   .selection-context-toolbar>span { padding-inline:4px; font-size:8px; }
   .selection-context-toolbar button { width:25px; height:25px; }
 }
+.master-title-placeholder { position:absolute; z-index:0; top:36px; left:5%; max-width:82%; overflow-wrap:anywhere; font:700 52px/1.08 var(--font-display); letter-spacing:-.035em; }
+.master-title-title { top:34%; left:7%; max-width:84%; font-size:92px; }
+.master-title-section { top:39%; left:7%; max-width:84%; font-size:82px; }
+.master-title-two-column { top:35px; left:5%; font-size:48px; }
+.master-current-slide { margin:-4px 0 1px; color:var(--muted-foreground); font-size:9px; }
