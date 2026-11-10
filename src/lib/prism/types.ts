@@ -148,6 +148,9 @@ export interface Animation {
   easing: string;
   direction: "left" | "right" | "up" | "down";
   trigger: "onClick" | "withPrevious" | "afterPrevious";
+  repeatCount?: number;
+  alternate?: boolean;
+  motionPath?: Array<{ x: number; y: number }>;
 }
 
 export interface Transition {
