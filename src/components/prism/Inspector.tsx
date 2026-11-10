@@ -117,7 +117,17 @@ export function Inspector({ mode, onMode }: { mode: string; onMode: (s: string) 
     const mode = event.shiftKey ? "add" : event.metaKey || event.ctrlKey ? "toggle" : "single";
     st.selectElements(ids, mode);
   };
-  const renderLayerObject = (element: SlideElement) => <div key={element.id} className={`layer-row layer-child ${st.selectedElementIds.includes(element.id) ? "selected-layer" : ""}`}>
+  const renderLayerObject = (element: SlideElement) => <div key={element.id} draggable onDragStart={event => {
+    event.dataTransfer.setData("application/x-prism-layer", element.id);
+    event.dataTransfer.effectAllowed = "move";
+    event.currentTarget.classList.add("layer-dragging");
+  }} onDragEnd={event => event.currentTarget.classList.remove("layer-dragging")} onDragOver={event => event.preventDefault()} onDrop={event => {
+    event.preventDefault();
+    const sourceId = event.dataTransfer.getData("application/x-prism-layer");
+    const targetIndex = slide.elements.findIndex(item => item.id === element.id);
+    if (sourceId && sourceId !== element.id && targetIndex >= 0) st.reorderElement(sourceId, targetIndex);
+  }} className={`layer-row layer-child layer-draggable ${st.selectedElementIds.includes(element.id) ? "selected-layer" : ""}`}>
+    <span className="layer-drag-grip" title="Drag to reorder">⋮⋮</span>
     <Button variant="ghost" className="min-w-0 flex-1 justify-start truncate" onClick={event => selectLayerElements(event, [element.id])}>{element.name}</Button>
     <Button variant="ghost" size="icon" title="Toggle visibility" onClick={() => st.updateElements([element.id], { hidden: !element.hidden })}><Eye className={element.hidden ? "opacity-30" : ""} /></Button>
     <Button variant="ghost" size="icon" title="Toggle lock" onClick={() => st.updateElements([element.id], { locked: !element.locked })}><Lock className={element.locked ? "" : "opacity-30"} /></Button>
@@ -144,7 +154,7 @@ export function Inspector({ mode, onMode }: { mode: string; onMode: (s: string) 
         const groupClass = selectedCount === memberIds.length ? "selected-layer" : selectedCount > 0 ? "selected-layer-partial" : "";
         const expanded = expandedGroups.has(row.groupId);
         return <div key={row.groupId} className="layer-group">
-          <div className={`layer-row layer-group-row ${groupClass}`}>
+          <div className={`layer-row layer-group-row layer-draggable ${groupClass}`} draggable onDragStart={event => { const firstMember = row.members[0]; if (firstMember) event.dataTransfer.setData("application/x-prism-layer", firstMember.id); event.dataTransfer.effectAllowed = "move"; }} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); const sourceId = event.dataTransfer.getData("application/x-prism-layer"); const targetIndex = slide.elements.findIndex(item => item.id === memberIds[0]); if (sourceId && targetIndex >= 0) st.reorderElement(sourceId, targetIndex); }}>
             <Button type="button" variant="ghost" size="icon" className="layer-expander" title={expanded ? "Collapse group" : "Expand group"} aria-label={expanded ? "Collapse group" : "Expand group"} aria-expanded={expanded} onClick={() => setExpandedGroups(current => {
               const n = new Set(current); if (n.has(row.groupId)) n.delete(row.groupId); else n.add(row.groupId); return n;
             })}>{expanded ? <ChevronDown /> : <ChevronRight />}</Button>
