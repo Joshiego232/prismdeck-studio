@@ -300,8 +300,16 @@ export function startAutosave(getDelay: () => number, enabled: () => boolean) {
     useDeck.setState({ saveState: "saving" });
     clearTimeout(t); t = setTimeout(flush, getDelay());
   });
-  const onUnload = () => { if (useDeck.getState().saveState !== "saved") flush(); };
-  window.addEventListener("beforeunload", onUnload);
-  return () => { unsub(); clearTimeout(t); window.removeEventListener("beforeunload", onUnload); };
+  const flushWhenLeaving = () => { if (useDeck.getState().saveState !== "saved") flush(); };
+  const onVisibilityChange = () => { if (document.visibilityState === "hidden") flushWhenLeaving(); };
+  window.addEventListener("beforeunload", flushWhenLeaving);
+  window.addEventListener("pagehide", flushWhenLeaving);
+  document.addEventListener("visibilitychange", onVisibilityChange);
+  return () => {
+    unsub(); clearTimeout(t);
+    window.removeEventListener("beforeunload", flushWhenLeaving);
+    window.removeEventListener("pagehide", flushWhenLeaving);
+    document.removeEventListener("visibilitychange", onVisibilityChange);
+  };
 }
 export const saveNow = () => { saveProject(useDeck.getState().deck); useDeck.setState({ saveState: "saved" }); };
