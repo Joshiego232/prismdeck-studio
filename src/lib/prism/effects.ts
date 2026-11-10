@@ -84,9 +84,15 @@ export const ANIMATIONS: AnimPreset[] = [
   { id: "zoomOut", label: "Zoom out", kind: "exit" }, { id: "sink", label: "Sink", kind: "exit" },
 ];
 
-export function animFrames(a: Pick<Animation, "effect" | "direction">, baseRot = 0): Keyframe[] {
+export function animFrames(a: Pick<Animation, "effect" | "direction"> & Partial<Pick<Animation, "motionPath">>, baseRot = 0): Keyframe[] {
   const [x, y] = vec(a.direction, 300);
   const r = `rotate(${baseRot}deg)`;
+  if (a.motionPath && a.motionPath.length >= 2) {
+    return a.motionPath.map((point, index) => ({
+      transform: `translate(${point.x}px, ${point.y}px) ${r}`,
+      offset: index / (a.motionPath!.length - 1),
+    }));
+  }
   switch (a.effect) {
     case "fadeIn": return [{ opacity: 0 }, { opacity: 1 }];
     case "slideIn": return [{ opacity: 0, transform: `translate(${x}px, ${y}px) ${r}` }, { opacity: 1, transform: `translate(0,0) ${r}` }];
