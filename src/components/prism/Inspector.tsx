@@ -7,6 +7,7 @@ import { TRANSITIONS, ANIMATIONS, EASINGS } from "@/lib/prism/effects";
 import { makeAnimation } from "@/lib/prism/factory";
 import { normalizeGradientColors } from "@/lib/prism/gradients";
 import type { Animation, Background, GradientType, Slide, SlideElement } from "@/lib/prism/types";
+import { parseChartData, serializeChartData } from "@/lib/prism/charts";
 
 export function Field({ label, children }: { label: string; children: ReactNode }) { return <label className="property-field"><span>{label}</span>{children}</label>; }
 export function Numeric({ label, value, onChange, min, max }: { label: string; value: number; onChange: (v: number) => void; min?: number; max?: number }) { return <Field label={label}><input aria-label={label} type="number" value={Math.round(value * 100) / 100} min={min} max={max} onChange={e => { const n = Number(e.target.value); if (Number.isFinite(n)) onChange(Math.min(max ?? Infinity, Math.max(min ?? -Infinity, n))); }} /></Field>; }
@@ -82,6 +83,23 @@ export function AnimationControls({ slide, el }: { slide: Slide; el?: SlideEleme
       <label className="flex items-center gap-2 text-[10px] text-muted-foreground"><input type="checkbox" checked={animation.alternate ?? false} onChange={event => patch(animation.id, { alternate: event.target.checked })} /> Alternate direction on each repeat</label>
     </div>)}
   </>;
+}
+
+function ChartCsvEditor({ data, onApply }: { data: Array<{ label: string; value: number }>; onApply: (data: Array<{ label: string; value: number }>) => void }) {
+  const [draft, setDraft] = useState(() => serializeChartData(data));
+  const [message, setMessage] = useState("");
+  return <div className="chart-csv-editor">
+    <label>Paste spreadsheet data <small>Label, value — one row per line</small>
+      <textarea rows={5} value={draft} onChange={event => setDraft(event.target.value)} placeholder={"Category,Value\nNorth,42\nSouth,58"} />
+    </label>
+    <Button type="button" variant="outline" size="sm" onClick={() => {
+      const parsed = parseChartData(draft);
+      if (parsed.length < 2) { setMessage("Add at least two valid label/value rows."); return; }
+      onApply(parsed);
+      setMessage(`Imported ${parsed.length} data points.`);
+    }}>Import data</Button>
+    {message && <small className="chart-import-message">{message}</small>}
+  </div>;
 }
 
 export function Inspector({ mode, onMode }: { mode: string; onMode: (s: string) => void }) {
@@ -244,7 +262,31 @@ export function Inspector({ mode, onMode }: { mode: string; onMode: (s: string) 
         <p className="text-[10px] text-muted-foreground">Opens in a new tab when this object is clicked during the presentation.</p>
       </section>}
       {el?.type === "image" && <section className="inspector-section"><h3>Image</h3><Field label="Fit"><select value={el.fit} onChange={e => update({ fit: e.target.value })}>{["cover", "contain", "fill"].map(v => <option key={v}>{v}</option>)}</select></Field>{(["brightness", "contrast", "saturation"] as const).map(k => <Field key={k} label={k}><input type="range" aria-label={k} min={-100} max={100} value={el.adjust[k]} onChange={e => update({ adjust: { ...el.adjust, [k]: Number(e.target.value) } })} /></Field>)}</section>}
-      {el?.type === "chart" && <section className="inspector-section"><h3>Chart data</h3><Field label="Title"><input value={el.title} onChange={e => update({ title: e.target.value })} /></Field>{el.data.map((d, i) => <div className="property-grid" key={i}><Field label={`Label ${i + 1}`}><input value={d.label} onChange={e => update({ data: el.data.map((x, n) => n === i ? { ...x, label: e.target.value } : x) })} /></Field><Numeric label={`Value ${i + 1}`} value={d.value} onChange={value => update({ data: el.data.map((x, n) => n === i ? { ...x, value } : x) })} /></div>)}</section>}
+      {el?.type === "chart" && <section className="inspector-section">
+        <h3>Chart designer</h3>
+        <Field label="Chart title"><input value={el.title} onChange={event => update({ title: event.target.value })} /></Field>
+        <Field label="Chart style"><select value={el.chartType} onChange={event => update({ chartType: event.target.value as typeof el.chartType })}>
+          <option value="bar">Vertical bars</option><option value="column">Columns</option><option value="horizontal">Horizontal bars</option><option value="line">Line</option><option value="area">Area</option><option value="pie">Pie</option><option value="donut">Doughnut</option>
+        </select></Field>
+        <div className="property-grid">
+          <Field label="Series colour"><input type="color" value={el.color} onChange={event => update({ color: event.target.value })} /></Field>
+          <Field label="Text colour"><input type="color" value={el.textColor} onChange={event => update({ textColor: event.target.value })} /></Field>
+        </div>
+        <Field label="Axis caption"><input value={el.axisLabel ?? ""} onChange={event => update({ axisLabel: event.target.value })} placeholder="Optional units or context" /></Field>
+        <div className="chart-display-options">
+          <label><input type="checkbox" checked={el.showValues ?? false} onChange={event => update({ showValues: event.target.checked })} /> Show values</label>
+          <label><input type="checkbox" checked={el.showLegend ?? true} onChange={event => update({ showLegend: event.target.checked })} /> Show legend</label>
+        </div>
+        <div className="chart-data-list">
+          <div className="flex items-center justify-between"><strong>Data points</strong><Button size="sm" variant="outline" onClick={() => update({ data: [...el.data, { label: `Item ${el.data.length + 1}`, value: 0 }] })}><Plus size={13}/> Add row</Button></div>
+          {el.data.map((datum, index) => <div className="chart-data-row" key={index}>
+            <Field label={`Label ${index + 1}`}><input value={datum.label} onChange={event => update({ data: el.data.map((item, i) => i === index ? { ...item, label: event.target.value } : item) })} /></Field>
+            <Numeric label="Value" value={datum.value} onChange={value => update({ data: el.data.map((item, i) => i === index ? { ...item, value } : item) })} />
+            <Button title={`Remove row ${index + 1}`} variant="ghost" size="icon" disabled={el.data.length <= 2} onClick={() => update({ data: el.data.filter((_, i) => i !== index) })}><Trash2 /></Button>
+          </div>)}
+        </div>
+        <ChartCsvEditor key={el.id} data={el.data} onApply={data => update({ data })} />
+      </section>}
       {el && <section className="inspector-section"><h3>Arrange</h3><div className="flex gap-1"><Button title="Bring forward" variant="ghost" size="icon" onClick={() => st.reorderElement(el.id, "forward")}><ChevronUp /></Button><Button title="Send backward" variant="ghost" size="icon" onClick={() => st.reorderElement(el.id, "backward")}><ChevronDown /></Button><Button title="Duplicate object" variant="ghost" size="icon" onClick={st.duplicateSelected}><Copy /></Button><Button title="Delete object" variant="ghost" size="icon" onClick={st.deleteSelected}><Trash2 /></Button></div></section>}
     </>}
 
