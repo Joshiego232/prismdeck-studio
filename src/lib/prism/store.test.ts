@@ -75,13 +75,14 @@ describe("PrismDeck editor store", () => {
     const first = makeText({ name: "Group A" });
     const second = makeText({ name: "Group B" });
     const third = makeText({ name: "Independent target" });
-    useDeck.getState().mutate(deck => { deck.slides[0]!.elements.push(first, second, third); });
+    useDeck.getState().mutate(deck => { deck.slides[0]!.elements.push(third, first, second); });
     useDeck.getState().groupElements([first.id, second.id]);
     useDeck.getState().reorderElements([first.id, second.id], third.id);
-    const order = useDeck.getState().deck.slides[0]!.elements.map(element => element.id);
-    expect(order).toEqual([third.id, first.id, second.id]);
-    expect(useDeck.getState().deck.slides[0]!.elements[1]?.groupId)
-      .toBe(useDeck.getState().deck.slides[0]!.elements[2]?.groupId);
+    const reordered = useDeck.getState().deck.slides[0]!.elements;
+    const order = reordered.map(element => element.id);
+    expect(order).toEqual([first.id, second.id, third.id]);
+    expect(reordered[0]?.groupId).toBe(reordered[1]?.groupId);
+    expect(reordered[0]?.groupId).toBeTruthy();
   });
 
   it("duplicates a slide with fresh slide, object, animation, and group IDs", () => {
