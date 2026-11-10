@@ -52,6 +52,25 @@ Right-click a slide thumbnail to add a slide after it, duplicate it, or delete i
 - Save a group of two or more shapes using **Home → Arrange → Save as custom shape**, then insert it from **Insert → Custom library** on any slide. The library is local to the current browser profile and site origin, not cloud-synchronised.
 - In **Layers**, grouped objects appear under collapsible group rows. Shift-click adds items to the selection; Ctrl/Cmd-click toggles individual items.
 
+## Presentation design systems
+
+- **Master Slides & Theme Designer** provides reusable title, content, section, minimal and two-column masters. Masters can be applied to one slide or the entire deck, with editable palette, title, accent, footer and slide-number treatments.
+- Six presentation theme presets can be applied across solid slide backgrounds and default theme colours.
+- **Smart Diagram Builder** creates editable grouped process, timeline, hierarchy, cycle and mind-map diagrams using native slide shapes and connectors.
+- The **My Shapes** library supports searchable visual previews, folders, renaming, deletion, click-to-insert and drag-to-slide insertion. The library is saved in browser storage.
+
+## Charts, animation and interaction
+
+- Charts support vertical/horizontal bars, columns, line, area, pie and doughnut styles; chart values can be edited in the Inspector or imported from CSV/tab-separated spreadsheet data.
+- Slide animations include additional emphasis/entrance/exit presets, editable order, duration, delay, repeat count, alternate playback, easing, direction and relative custom motion paths.
+- Presentation objects can open external links or navigate to the next, previous, first, last or a selected slide during playback.
+- The object Inspector provides precise geometry fields, while the contextual toolbar and Arrange ribbon offer alignment and distribution controls. Layers can be reordered by dragging.
+
+## Performance and persistence
+
+- Object and chart rendering is memoized where practical, slide thumbnails use layout containment, and autosave flushes when the tab is hidden or the page is leaving.
+- Presentation documents and custom-shape libraries remain browser-local; this release does not claim cross-device cloud collaboration.
+
 ## Project structure
 
 - `src/components/prism/` — presentation studio, slide canvas, and inspector
