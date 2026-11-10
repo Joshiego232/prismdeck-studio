@@ -35,11 +35,11 @@ export function createDiagramElements(kind: DiagramKind, inputLabels: string[], 
   const groupId = uid("diagram_");
   const elements: ShapeEl[] = [];
   const cx = Math.round(deckWidth / 2), cy = Math.round(deckHeight / 2);
-  const nodeW = kind === "hierarchy" || kind === "mindmap" ? 330 : 270;
+  const nodeW = kind === "hierarchy" || kind === "mindmap" ? 330 : Math.min(270, Math.floor((deckWidth - 180 - (labels.length - 1) * 65) / labels.length));
   const nodeH = 118;
 
   if (kind === "process") {
-    const gap = 105, total = labels.length * nodeW + (labels.length - 1) * gap;
+    const gap = 65, total = labels.length * nodeW + (labels.length - 1) * gap;
     let x = cx - total / 2;
     labels.forEach((label, i) => {
       if (i) elements.push(connector(x - gap + 18, cy - 9, gap - 34, 18, groupId));
