@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
-import type { Deck, Slide, SlideElement, ShapeEl, TextEl } from "@/lib/prism/types";
+import type { Deck, Slide, SlideElement, ShapeEl, TextEl, SlideAction } from "@/lib/prism/types";
+import { ChartRenderer } from "./ChartRenderer";
 import { getSharedGroupGradient } from "@/lib/prism/groupStyles";
 import { gradientCss } from "@/lib/prism/gradients";
 import { isFeatureEnabled } from "@/lib/prism/featureFlags";
@@ -16,10 +17,7 @@ function ElementContent({ el, presenting, fillStyle }: { el: SlideElement; prese
   if (el.type === "image") return <img draggable={false} src={src} alt={el.alt} className="h-full w-full" style={{ objectFit: el.fit, borderRadius: el.radius, filter: `brightness(${1 + el.adjust.brightness / 100}) contrast(${1 + el.adjust.contrast / 100}) saturate(${1 + el.adjust.saturation / 100})`, transform: `scale(${el.flipX ? -1 : 1},${el.flipY ? -1 : 1})` }} />;
   if (el.type === "video") return <video src={src} poster={el.poster} controls={presenting} autoPlay={presenting && el.autoplay} muted={el.muted} loop={el.loop} className="h-full w-full" style={{ objectFit: el.fit }} />;
   if (el.type === "audio") return <audio src={src} controls autoPlay={presenting && el.autoplay} loop={el.loop} />;
-  if (el.type === "chart") {
-    const max = Math.max(1, ...el.data.map(d => d.value));
-    return <div style={{ color: el.textColor }} className="flex h-full flex-col gap-8 p-8"><h3 className="slide-body">{el.title}</h3><div className="flex flex-1 items-end gap-8 border-b border-current">{el.data.map((d, i) => <div key={i} className="flex h-full flex-1 flex-col justify-end gap-4 text-center"><span className="slide-body">{d.value}</span><div style={{ background: el.color, height: `${Math.max(2, d.value / max * 75)}%` }} /><span className="slide-caption pb-4">{d.label}</span></div>)}</div></div>;
-  }
+  if (el.type === "chart") return <ChartRenderer chart={el} />;
   const colors = el.gradientColors?.length ? el.gradientColors : [el.fill, el.fill2];
   const fill = el.gradient ? gradientCss(el.gradientType, el.gradientAngle, colors) : el.fill;
   if (el.shape === "line" || el.shape === "arrow") return <svg viewBox={`0 0 ${el.w} ${el.h}`} className="h-full w-full"><line x1="0" y1={el.h / 2} x2={el.w - 15} y2={el.h / 2} stroke={el.stroke} strokeWidth={el.strokeWidth} />{el.shape === "arrow" && <path d={`M ${el.w - 30} 0 L ${el.w} ${el.h / 2} L ${el.w - 30} ${el.h}`} stroke={el.stroke} strokeWidth={el.strokeWidth} fill="none" />}</svg>;
@@ -53,7 +51,7 @@ function TextContent({ el, presenting }: { el: TextEl; presenting: boolean }) {
 
 type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 
-export function ScaledSlide({ slide, deck, editable = false, presenting = false, step = 0, previewKey = 0, showGrid = false, morphFrom }: { slide: Slide; deck: Pick<Deck, "width" | "height">; editable?: boolean; presenting?: boolean; step?: number; previewKey?: number; showGrid?: boolean; morphFrom?: Slide }) {
+export function ScaledSlide({ slide, deck, editable = false, presenting = false, step = 0, previewKey = 0, showGrid = false, morphFrom, onSlideAction }: { slide: Slide; deck: Pick<Deck, "width" | "height" | "masters" | "slides">; editable?: boolean; presenting?: boolean; step?: number; previewKey?: number; showGrid?: boolean; morphFrom?: Slide; onSlideAction?: (action: SlideAction) => void }) {
   const host = useRef<HTMLDivElement>(null), scene = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.1);
   const selected = useDeck(s => s.selectedElementIds);
@@ -314,6 +312,15 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
     <div className="slide-wrapper" style={{ width: deck.width, height: deck.height, marginLeft: -deck.width / 2, marginTop: -deck.height / 2, transform: `scale(${scale})` }}>
       <div ref={scene} className="slide-content h-full w-full" style={{ background: slide.background.type === "gradient" ? gradientCss(slide.background.gradientType, slide.background.angle, slide.background.gradientColors?.length ? slide.background.gradientColors : [slide.background.color, slide.background.color2]) : slide.background.color }}>
         {slide.background.type === "image" && <img src={background} alt="" className="absolute inset-0 h-full w-full" style={{ objectFit: slide.background.imageFit }} />}
+        {slide.masterId && deck.masters?.find(master => master.id === slide.masterId) && (() => {
+          const master = deck.masters.find(item => item.id === slide.masterId)!;
+          const slideNumber = deck.slides.findIndex(item => item.id === slide.id) + 1;
+          return <div className={`master-frame master-layout-${master.layout}`} aria-hidden="true">
+            {master.showAccentRule && <div className="master-accent-rule" style={{ background: master.accentColor }} />}
+            {master.footerText && <span style={{ color: master.titleColor }}>{master.footerText}</span>}
+            {master.showSlideNumber && <span style={{ color: master.titleColor }}>{slideNumber}</span>}
+          </div>;
+        })()}
         {showGrid && <div className="stage-grid pointer-events-none absolute inset-0" style={{ backgroundSize: "40px 40px" }} />}
         {slide.elements.filter(e => !e.hidden).map(el => {
           const groupMembers = el.type === "shape" && el.groupId
@@ -334,7 +341,7 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
               backgroundRepeat: "no-repeat",
             };
           }
-          return <div key={el.id} data-element-id={el.id} data-object-name={el.name} className={`slide-object ${editable ? "editable-object" : ""} ${editable && selected.includes(el.id) ? "object-selected" : ""}`} style={{ left: el.x, top: el.y, width: el.w, height: el.h, transform: `rotate(${el.rotation}deg)`, opacity: el.opacity, cursor: presenting && el.hyperlink ? "pointer" : undefined, filter: el.blur ? `blur(${el.blur}px)` : undefined, boxShadow: el.shadow.on ? `${el.shadow.x}px ${el.shadow.y}px ${el.shadow.blur}px ${el.shadow.color}` : undefined }} onPointerDown={e => manipulate(e, el, "move")} onClick={e => { if (presenting && el.hyperlink) { e.stopPropagation(); const raw = el.hyperlink.trim(); const href = /^(https?:|mailto:|tel:)/i.test(raw) ? raw : `https://${raw}`; try { const parsed = new URL(href); if (["http:", "https:", "mailto:", "tel:"].includes(parsed.protocol)) window.open(href, "_blank", "noopener,noreferrer"); } catch { /* Ignore invalid presentation links. */ } } }} onDoubleClick={e => { if (editable && el.type === "text") { e.stopPropagation(); useDeck.getState().setEditingText(el.id); } }}>
+          return <div key={el.id} data-element-id={el.id} data-object-name={el.name} className={`slide-object ${editable ? "editable-object" : ""} ${editable && selected.includes(el.id) ? "object-selected" : ""}`} style={{ left: el.x, top: el.y, width: el.w, height: el.h, transform: `rotate(${el.rotation}deg)`, opacity: el.opacity, cursor: presenting && (el.hyperlink || el.slideAction) ? "pointer" : undefined, filter: el.blur ? `blur(${el.blur}px)` : undefined, boxShadow: el.shadow.on ? `${el.shadow.x}px ${el.shadow.y}px ${el.shadow.blur}px ${el.shadow.color}` : undefined }} onPointerDown={e => manipulate(e, el, "move")} onClick={e => { if (!presenting) return; if (el.slideAction && onSlideAction) { e.stopPropagation(); onSlideAction(el.slideAction); return; } if (el.hyperlink) { e.stopPropagation(); const raw = el.hyperlink.trim(); const href = /^(https?:|mailto:|tel:)/i.test(raw) ? raw : `https://${raw}`; try { const parsed = new URL(href); if (["http:", "https:", "mailto:", "tel:"].includes(parsed.protocol)) window.open(href, "_blank", "noopener,noreferrer"); } catch { /* Ignore invalid presentation links. */ } } }} onDoubleClick={e => { if (editable && el.type === "text") { e.stopPropagation(); useDeck.getState().setEditingText(el.id); } }}>
             <ElementContent el={el} presenting={presenting} fillStyle={groupFillStyle} />
             {editable && selected.includes(el.id) && <>
               {(["nw", "n", "ne", "e", "se", "s", "sw", "w"] as ResizeHandle[]).map(handle => <span key={handle} className="resize-handle" data-handle={handle} role="presentation" aria-label={`Resize ${handle}`} onPointerDown={e => manipulate(e, el, "resize", handle)} />)}
