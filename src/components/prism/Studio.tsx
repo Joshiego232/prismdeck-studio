@@ -15,7 +15,7 @@ import { SHAPE_KINDS, type Deck, type ShapeEl, type SlideMaster, type SlideActio
 import { createDiagramElements, type DiagramKind } from "@/lib/prism/diagrams";
 import { createSlideMaster } from "@/lib/prism/masters";
 import { PRESENTATION_THEMES } from "@/lib/prism/themes";
-import { createCustomShapeDefinition, deleteCustomShape, instantiateCustomShape, listCustomShapes, saveCustomShape, type CustomShapeDefinition } from "@/lib/prism/customShapes";
+import { createCustomShapeDefinition, deleteCustomShape, instantiateCustomShape, listCustomShapes, saveCustomShape, updateCustomShape, type CustomShapeDefinition } from "@/lib/prism/customShapes";
 import { ScaledSlide } from "./ScaledSlide";
 import { Inspector, TransitionControls } from "./Inspector";
 import { MasterSlidesDialog } from "./MasterSlidesDialog";
@@ -95,13 +95,45 @@ function ShapePicker({ onSelect }: { onSelect: (shape: (typeof SHAPE_KINDS)[numb
   </>;
 }
 
-function CustomShapePicker({ shapes, onInsert, onDelete }: {
+function CustomShapePreview({ shape }: { shape: CustomShapeDefinition }) {
+  const polygon = (kind: string) => ({
+    triangle: "50,0 100,100 0,100",
+    rightTriangle: "0,0 100,100 0,100",
+    diamond: "50,0 100,50 50,100 0,50",
+    pentagon: "50,0 100,38 82,100 18,100 0,38",
+    hexagon: "25,0 75,0 100,50 75,100 25,100 0,50",
+    star: "50,0 61,35 98,35 68,57 79,95 50,72 21,95 32,57 2,35 39,35",
+  }[kind] ?? "");
+  return <svg viewBox={`0 0 ${Math.max(1, shape.width)} ${Math.max(1, shape.height)}`} aria-hidden="true">
+    <defs>{shape.elements.filter(item => item.gradient).map(item => <linearGradient key={item.id} id={`custom-preview-${item.id}`} x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor={item.gradientColors?.[0] ?? item.fill} /><stop offset="100%" stopColor={item.gradientColors?.[item.gradientColors.length - 1] ?? item.fill2} /></linearGradient>)}</defs>
+    {shape.elements.map(item => <g key={item.id} transform={`translate(${item.x} ${item.y}) rotate(${item.rotation} ${item.w / 2} ${item.h / 2})`} opacity={item.opacity}>
+      {item.shape === "line" || item.shape === "arrow"
+        ? <line x1="0" y1={item.h / 2} x2={item.w - (item.shape === "arrow" ? 12 : 0)} y2={item.h / 2} stroke={item.stroke} strokeWidth={Math.max(3, item.strokeWidth)} />
+        : item.shape === "ellipse"
+          ? <ellipse cx={item.w / 2} cy={item.h / 2} rx={item.w / 2} ry={item.h / 2} fill={item.gradient ? `url(#custom-preview-${item.id})` : item.fill} stroke={item.stroke} strokeWidth={item.strokeWidth} />
+          : polygon(item.shape)
+            ? <polygon points={polygon(item.shape).split(" ").map(point => { const [x,y]=point.split(",").map(Number); return `${(x ?? 0) * item.w / 100 + item.x},${(y ?? 0) * item.h / 100 + item.y}`; }).join(" ")} fill={item.gradient ? `url(#custom-preview-${item.id})` : item.fill} stroke={item.stroke} strokeWidth={item.strokeWidth} />
+            : <rect x="0" y="0" width={item.w} height={item.h} rx={Math.min(item.radius, item.w / 5, item.h / 5)} fill={item.gradient ? `url(#custom-preview-${item.id})` : item.fill} stroke={item.stroke} strokeWidth={item.strokeWidth} />}
+      {item.text && <text x={item.w/2} y={item.h/2} fontSize={Math.min(item.fontSize, item.h/3)} fill={item.textColor} textAnchor="middle" dominantBaseline="middle">{item.text.slice(0,24)}</text>}
+    </g>)}
+  </svg>;
+}
+
+function CustomShapePicker({ shapes, onInsert, onDelete, onRename, onMoveFolder }: {
   shapes: CustomShapeDefinition[];
   onInsert: (shape: CustomShapeDefinition) => void;
   onDelete: (id: string) => void;
+  onRename: (id: string) => void;
+  onMoveFolder: (id: string) => void;
 }) {
   const anchor = useRef<HTMLDivElement>(null), menu = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false), [position, setPosition] = useState({ top: 0, left: 12 });
+  const [search, setSearch] = useState(""), [folder, setFolder] = useState("all");
+  const folders = [...new Set(shapes.map(shape => shape.folder?.trim() || "Unfiled"))].sort((a,b) => a.localeCompare(b));
+  const filtered = shapes.filter(shape =>
+    (folder === "all" || (shape.folder?.trim() || "Unfiled") === folder)
+    && `${shape.name} ${shape.folder ?? ""} ${shape.elements.length}`.toLowerCase().includes(search.trim().toLowerCase())
+  );
   useEffect(() => {
     if (!open) return;
     const closeOutside = (event: PointerEvent) => {
@@ -118,11 +150,12 @@ function CustomShapePicker({ shapes, onInsert, onDelete }: {
     if (!open) {
       const rect = anchor.current?.getBoundingClientRect();
       if (rect) {
-        const menuHeight = Math.min(390, Math.max(180, window.innerHeight - 24));
-        const menuWidth = Math.min(350, Math.max(220, window.innerWidth - 24));
-        const top = Math.min(rect.bottom + 6, Math.max(12, window.innerHeight - menuHeight - 12));
-        const left = Math.min(Math.max(12, rect.left), Math.max(12, window.innerWidth - menuWidth - 12));
-        setPosition({ top, left });
+        const menuHeight = Math.min(440, Math.max(180, window.innerHeight - 24));
+        const menuWidth = Math.min(410, Math.max(240, window.innerWidth - 24));
+        setPosition({
+          top: Math.min(rect.bottom + 6, Math.max(12, window.innerHeight - menuHeight - 12)),
+          left: Math.min(Math.max(12, rect.left), Math.max(12, window.innerWidth - menuWidth - 12)),
+        });
       }
     }
     setOpen(value => !value);
@@ -135,15 +168,25 @@ function CustomShapePicker({ shapes, onInsert, onDelete }: {
     </div>
     {open && typeof document !== "undefined" && createPortal(
       <div ref={menu} className="shape-picker-menu custom-shape-menu" role="menu" aria-label="Custom shape library" style={{ top: position.top, left: position.left }}>
-        <div className="shape-picker-heading">Custom shape library</div>
-        {shapes.length === 0 ? <p className="custom-shape-empty">No saved shapes yet. Group two or more shapes, then choose “Save as custom shape” from Home → Arrange.</p> : <div className="custom-shape-list">
-          {shapes.map(shape => <div className="custom-shape-row" key={shape.id}>
-            <Button type="button" variant="ghost" className="custom-shape-insert" role="menuitem" onClick={() => { onInsert(shape); setOpen(false); }}>
-              <Shapes size={16} /><span><strong>{shape.name}</strong><small>{shape.elements.length} objects · {Math.round(shape.width)} × {Math.round(shape.height)}</small></span>
-            </Button>
-            <Button type="button" variant="ghost" size="icon" title={`Delete ${shape.name}`} aria-label={`Delete ${shape.name}`} onClick={() => onDelete(shape.id)}><Trash2 /></Button>
+        <div className="custom-shape-menu-heading"><div><strong>My Shapes</strong><small>{shapes.length} saved designs</small></div><Button size="icon" variant="ghost" title="Close library" onClick={() => setOpen(false)}><X /></Button></div>
+        <div className="custom-shape-filters">
+          <input type="search" aria-label="Search saved shapes" placeholder="Search your library…" value={search} onChange={event => setSearch(event.target.value)} />
+          <select aria-label="Filter custom shape folder" value={folder} onChange={event => setFolder(event.target.value)}><option value="all">All folders</option>{folders.map(name => <option key={name} value={name}>{name}</option>)}</select>
+        </div>
+        {filtered.length === 0 ? <p className="custom-shape-empty">{shapes.length ? "No saved shapes match this search or folder." : "Your library is empty. Group two or more shapes, then choose “Save as custom shape” from Home → Arrange."}</p> : <div className="custom-shape-list">
+          {filtered.map(shape => <div className="custom-shape-row" key={shape.id}>
+            <button type="button" className="custom-shape-insert" draggable onDragStart={event => { event.dataTransfer.setData("application/x-prism-custom-shape", shape.id); event.dataTransfer.effectAllowed = "copy"; }} onClick={() => { onInsert(shape); setOpen(false); }}>
+              <span className="custom-shape-preview"><CustomShapePreview shape={shape} /></span>
+              <span><strong>{shape.name}</strong><small>{shape.elements.length} objects · {Math.round(shape.width)} × {Math.round(shape.height)}</small><small className="custom-shape-folder">{shape.folder?.trim() || "Unfiled"}</small></span>
+            </button>
+            <div className="custom-shape-actions">
+              <Button type="button" variant="ghost" size="icon" title={`Rename ${shape.name}`} aria-label={`Rename ${shape.name}`} onClick={() => onRename(shape.id)}><Settings2 /></Button>
+              <Button type="button" variant="ghost" size="icon" title="Move to folder" aria-label="Move to folder" onClick={() => onMoveFolder(shape.id)}><Layers /></Button>
+              <Button type="button" variant="ghost" size="icon" title={`Delete ${shape.name}`} aria-label={`Delete ${shape.name}`} onClick={() => onDelete(shape.id)}><Trash2 /></Button>
+            </div>
           </div>)}
         </div>}
+        <div className="custom-shape-library-footer">Drag a design onto the slide or click to insert it.</div>
       </div>, document.body
     )}
   </>;
@@ -184,6 +227,22 @@ export default function Studio({ slideIndex, step, print, presenterMode = false,
     st.mutate(d => { findSlide(d, slide.id)?.elements.push(...elements); });
     st.selectElements(elements.map(element => element.id));
     toast.success(`“${definition.name}” inserted on this slide.`);
+  };
+  const renameCustomShape = (id: string) => {
+    const shape = customShapes.find(item => item.id === id);
+    if (!shape) return;
+    const name = window.prompt("Rename custom shape", shape.name);
+    if (name === null) return;
+    if (updateCustomShape(id, { name })) { setCustomShapes(listCustomShapes()); toast.success("Custom shape renamed."); }
+    else toast.error("Could not rename this shape.");
+  };
+  const moveCustomShapeFolder = (id: string) => {
+    const shape = customShapes.find(item => item.id === id);
+    if (!shape) return;
+    const folder = window.prompt("Folder name (leave blank for Unfiled)", shape.folder ?? "");
+    if (folder === null) return;
+    if (updateCustomShape(id, { folder })) { setCustomShapes(listCustomShapes()); toast.success("Library folder updated."); }
+    else toast.error("Could not update this folder.");
   };
   const removeCustomShape = (id: string) => {
     const shape = customShapes.find(item => item.id === id);
@@ -459,7 +518,7 @@ export default function Studio({ slideIndex, step, print, presenterMode = false,
       {tab === "transitions" ? <><ToolGroup label="Playback"><Tool icon={<Play />} label="Preview" onClick={() => setPreviewKey(k => k + 1)} /></ToolGroup><ToolGroup label="Transition gallery">{TRANSITIONS.map(t => <Button variant="ghost" className={`effect-tile ${slide.transition.type === t.id ? "effect-selected" : ""}`} key={t.id} onClick={() => st.mutate(d => { const s = findSlide(d, slide.id); if (s) s.transition.type = t.id; })}><span className={`effect-symbol effect-${t.id}`} /><span>{t.label}</span></Button>)}</ToolGroup></> : tab === "animations" ? <><ToolGroup label="Playback"><Tool icon={<Play />} label="Preview" onClick={() => setPreviewKey(k => k + 1)} /></ToolGroup><ToolGroup label="Entrance & emphasis">{ANIMATIONS.slice(0, 10).map(a => <Tool key={a.id} icon={<Sparkles />} label={a.label} disabled={!selected} onClick={() => { const element = selected; if (!element) return; import("@/lib/prism/factory").then(({ makeAnimation }) => st.mutate(d => findSlide(d, slide.id)?.animations.push(makeAnimation(element.id, a.kind, a.id)))); }} />)}</ToolGroup></> : tab === "design" ? <><ToolGroup label="Slide size">{SLIDE_SIZES.map(size => <Button key={size.label} variant="ghost" className={`effect-tile ${st.deck.width === size.width && st.deck.height === size.height ? "effect-selected" : ""}`} title={size.label} onClick={() => chooseSlideSize(size.width, size.height)}><span className="effect-symbol" /><span>{size.label}</span></Button>)}<Button variant="outline" size="sm" onClick={customSlideSize}>Custom size</Button></ToolGroup><ToolGroup label="Design system"><Tool icon={<Palette />} label="Master Slides & Theme" onClick={() => setMasterDialogOpen(true)} /></ToolGroup></> : <>
         {basicGroups.map(g => <ToolGroup key={g.id} label={g.label}>{g.id === "shapes" ? <ShapePicker onSelect={shape => st.addElement(makeShape(shape))} /> : g.tools.filter(t => !t.hidden && actions[t.id] && toolMeta[t.id]).map(t => <Tool key={t.id} {...toolMeta[t.id]} disabled={t.id === "edit.undo" ? !st.past.length : t.id === "edit.redo" ? !st.future.length : false} onClick={actions[t.id]} />)}</ToolGroup>)}
         {tab === "home" && <><ToolGroup label="Insert"><Tool icon={<Type />} label="Text box" onClick={actions["insert.text"]} /><ShapePicker onSelect={shape => st.addElement(makeShape(shape))} /><Tool icon={<ImagePlus />} label="Image" onClick={actions["insert.image"]} /></ToolGroup><ToolGroup label="Arrange"><Tool icon={<Layers />} label="Layers" onClick={() => { setMode("Layers"); prefs.set({ showInspector: true }); }} /><Tool icon={<Copy />} label="Duplicate" onClick={st.duplicateSelected} disabled={!selected} /><Tool icon={<Layers />} label="Group" onClick={() => st.groupElements()} disabled={st.selectedElementIds.length < 2} /><Tool icon={<Layers />} label="Ungroup" onClick={() => st.ungroupElements()} disabled={!selected?.groupId} /><Tool icon={<BookmarkPlus />} label="Save as custom shape" onClick={saveSelectedCustomShape} disabled={!canSaveSelectedCustomShape} /></ToolGroup></>}
-        {tab === "insert" && <><ToolGroup label="Data & diagrams"><Tool icon={<BarChart3 />} label="Bar chart" onClick={() => st.addElement(makeChart("bar", { title: "Sample data — replace with yours" }))} /><Tool icon={<BarChart3 />} label="Line chart" onClick={() => st.addElement(makeChart("line", { title: "Trend over time" }))} /><Tool icon={<Network />} label="Smart Diagram" onClick={() => setDiagramBuilderOpen(true)} /></ToolGroup><ToolGroup label="Custom library"><CustomShapePicker shapes={customShapes} onInsert={insertCustomShape} onDelete={removeCustomShape} /></ToolGroup></>}
+        {tab === "insert" && <><ToolGroup label="Data & diagrams"><Tool icon={<BarChart3 />} label="Bar chart" onClick={() => st.addElement(makeChart("bar", { title: "Sample data — replace with yours" }))} /><Tool icon={<BarChart3 />} label="Line chart" onClick={() => st.addElement(makeChart("line", { title: "Trend over time" }))} /><Tool icon={<Network />} label="Smart Diagram" onClick={() => setDiagramBuilderOpen(true)} /></ToolGroup><ToolGroup label="Custom library"><CustomShapePicker shapes={customShapes} onInsert={insertCustomShape} onDelete={removeCustomShape} onRename={renameCustomShape} onMoveFolder={moveCustomShapeFolder} /></ToolGroup></>}
         {tab === "view" && <ToolGroup label="Panels"><Tool icon={<PanelLeftClose />} label="Navigator" onClick={() => prefs.set({ showNavigator: !prefs.showNavigator })} /><Tool icon={<PanelRightClose />} label="Inspector" onClick={() => prefs.set({ showInspector: !prefs.showInspector })} /><Tool icon={<Grid2X2 />} label="Grid lines" onClick={() => prefs.set({ showGrid: !prefs.showGrid })} /></ToolGroup>}
       </>}
       <div className="ribbon-end"><span className="workspace-badge"><span className="status-dot" /> EDITING</span></div>
@@ -468,7 +527,7 @@ export default function Studio({ slideIndex, step, print, presenterMode = false,
       {prefs.showNavigator && <aside className="slide-navigator scrollbar-thin"><div className="navigator-heading"><span>Slides <span className="count-badge">{st.deck.slides.length}</span></span><Button title="Slide sorter" size="icon" variant="ghost" onClick={() => setGrid(g => !g)}><Grid2X2 /></Button></div><div className="thumbnail-list">{st.deck.slides.map((s, i) => <div key={s.id} className="thumbnail-item" draggable onContextMenu={e => { e.preventDefault(); st.selectSlide(s.id); setCoordinate(i + 1, 0); setSlideMenu({ x: Math.min(e.clientX, window.innerWidth - 205), y: Math.min(e.clientY, window.innerHeight - 165), slideId: s.id }); }} onDragStart={e => e.dataTransfer.setData("text/prism-slide", s.id)} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); const id = e.dataTransfer.getData("text/prism-slide"); if (id) st.moveSlides([id], i); }}>
         {s.section && <div className="section-divider"><ChevronDown size={11} />{s.section}</div>}<div className="thumbnail-row"><span className={`thumbnail-number ${s.id === slide.id ? "text-primary" : ""}`}>{i + 1}</span><Button variant="ghost" aria-label={`Slide ${i + 1}: ${s.name}`} className={`thumbnail ${s.id === slide.id ? "thumbnail-active" : ""}`} onClick={e => { st.selectSlide(s.id, e.shiftKey ? "range" : e.metaKey || e.ctrlKey ? "toggle" : "single"); setCoordinate(i + 1, 0); }}><ScaledSlide slide={s} deck={st.deck} /></Button><Button variant="ghost" size="icon" className="thumbnail-duplicate" title={`Duplicate slide ${i + 1}`} aria-label={`Duplicate slide ${i + 1}`} onClick={e => { e.stopPropagation(); duplicateSlideAndNavigate(s.id); }}><Copy /></Button></div><div className="thumbnail-caption"><span>{s.name}</span>{s.animations.length > 0 && <Sparkles size={11} />}</div></div>)}</div><div className="navigator-bottom"><Button variant="outline" size="sm" onClick={() => st.addSlide()}><Plus /> New slide</Button></div></aside>}
       <main className="canvas-column"><div className="canvas-heading"><div className="flex items-center gap-2"><span className="text-muted-foreground">{grid ? "Slide sorter" : "Canvas"}</span><ChevronRight size={12} /><span>{grid ? `${st.deck.slides.length} slides` : slide.name}</span></div><span className="canvas-dimensions">{st.deck.width} × {st.deck.height}</span></div>
-        {grid ? <div className="slide-grid scrollbar-thin">{st.deck.slides.map((s, i) => <div key={s.id}><Button variant="ghost" className="grid-thumbnail" onClick={() => { go(i); setGrid(false); }}><ScaledSlide slide={s} deck={st.deck} /></Button><div className="mt-2 flex items-center justify-between text-xs"><span>{i + 1} · {s.name}</span><Button title="Duplicate slide" variant="ghost" size="icon" onClick={() => duplicateSlideAndNavigate(s.id)}><Copy /></Button></div></div>)}</div> : <div className="canvas-stage" ref={stage} {...swipeProps} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); upload(e.dataTransfer.files); }}><div className="canvas-surround" style={{ transform: `scale(${zoom})` }}><div className="canvas-slide" style={{ aspectRatio: `${st.deck.width}/${st.deck.height}` }}><ScaledSlide slide={slide} deck={st.deck} editable previewKey={previewKey} showGrid={prefs.showGrid} /></div><div className="canvas-bottom-label"><span>{String(index + 1).padStart(2, "0")}</span><span>{slide.name}</span></div></div><div className="canvas-nav"><Button title="Previous slide" size="icon" variant="ghost" disabled={index === 0} onClick={() => go(index - 1)}><ChevronLeft /></Button><span>{index + 1} <span className="text-muted-foreground">/ {st.deck.slides.length}</span></span><Button title="Next slide" size="icon" variant="ghost" disabled={index === st.deck.slides.length - 1} onClick={() => go(index + 1)}><ChevronRight /></Button></div></div>}
+        {grid ? <div className="slide-grid scrollbar-thin">{st.deck.slides.map((s, i) => <div key={s.id}><Button variant="ghost" className="grid-thumbnail" onClick={() => { go(i); setGrid(false); }}><ScaledSlide slide={s} deck={st.deck} /></Button><div className="mt-2 flex items-center justify-between text-xs"><span>{i + 1} · {s.name}</span><Button title="Duplicate slide" variant="ghost" size="icon" onClick={() => duplicateSlideAndNavigate(s.id)}><Copy /></Button></div></div>)}</div> : <div className="canvas-stage" ref={stage} {...swipeProps} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); const customId = e.dataTransfer.getData("application/x-prism-custom-shape"); if (customId) { const definition = customShapes.find(item => item.id === customId); if (definition) insertCustomShape(definition); return; } upload(e.dataTransfer.files); }}><div className="canvas-surround" style={{ transform: `scale(${zoom})` }}><div className="canvas-slide" style={{ aspectRatio: `${st.deck.width}/${st.deck.height}` }}><ScaledSlide slide={slide} deck={st.deck} editable previewKey={previewKey} showGrid={prefs.showGrid} /></div><div className="canvas-bottom-label"><span>{String(index + 1).padStart(2, "0")}</span><span>{slide.name}</span></div></div><div className="canvas-nav"><Button title="Previous slide" size="icon" variant="ghost" disabled={index === 0} onClick={() => go(index - 1)}><ChevronLeft /></Button><span>{index + 1} <span className="text-muted-foreground">/ {st.deck.slides.length}</span></span><Button title="Next slide" size="icon" variant="ghost" disabled={index === st.deck.slides.length - 1} onClick={() => go(index + 1)}><ChevronRight /></Button></div></div>}
         <div className="notes-heading"><Button size="sm" variant="ghost" onClick={() => setNotes(n => !n)}><StickyNote /><span>Speaker notes</span><ChevronDown className={notes ? "rotate-180" : ""} /></Button><span className="text-[10px] text-muted-foreground">{slide.notes.length} characters</span></div>{notes && <textarea className="speaker-notes" aria-label="Speaker notes" placeholder="Add speaker notes…" value={slide.notes} onChange={e => st.mutate(d => { const s = findSlide(d, slide.id); if (s) s.notes = e.target.value; }, { coalesce: "notes" })} />}
       </main>
       {prefs.showInspector && <Inspector mode={mode} onMode={setMode} />}
