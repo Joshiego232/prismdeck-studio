@@ -10,7 +10,7 @@ import { loadProject, listProjects, readProject } from "@/lib/prism/projects";
 import { makeText, makeShape, makeImage, makeVideo, makeChart, makeDeck, makeSlide } from "@/lib/prism/factory";
 import { putAsset } from "@/lib/prism/assets";
 import { DEFAULT_RIBBON, type RibbonTab } from "@/lib/prism/ribbon";
-import { ANIMATIONS, TRANSITIONS, buildSteps } from "@/lib/prism/effects";
+import { ANIMATIONS, buildSteps } from "@/lib/prism/effects";
 import { SHAPE_KINDS, type Deck, type ShapeEl, type SlideMaster, type SlideAction } from "@/lib/prism/types";
 import { createDiagramElements, type DiagramKind } from "@/lib/prism/diagrams";
 import { createSlideMaster } from "@/lib/prism/masters";
@@ -20,9 +20,14 @@ import { ScaledSlide } from "./ScaledSlide";
 import { Inspector, TransitionControls } from "./Inspector";
 import { MasterSlidesDialog } from "./MasterSlidesDialog";
 import { DiagramBuilder } from "./DiagramBuilder";
+import { TransitionGallery, TransitionTimingControls } from "./TransitionGallery";
 
 export interface StudioProps { slideIndex: number; step: number; print: boolean; presenterMode?: boolean; setCoordinate: (slide: number, step?: number) => void }
 const TAB_LABELS: Record<RibbonTab, string> = { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", media: "Media", review: "Review", view: "View" };
+const TAB_ICONS: Record<RibbonTab, ReactNode> = {
+  home: <MousePointer2 />, insert: <Plus />, design: <Palette />, transitions: <ArrowLeftRight />,
+  animations: <Sparkles />, media: <ImagePlus />, review: <StickyNote />, view: <MonitorPlay />,
+};
 const SLIDE_SIZES = [
   { label: "Widescreen 16:9", width: 1920, height: 1080 },
   { label: "Standard 4:3", width: 1440, height: 1080 },
@@ -196,6 +201,8 @@ export default function Studio({ slideIndex, step, print, presenterMode = false,
   const st = useDeck(), prefs = usePrefs(), slide = currentSlide(st);
   const [tab, setTab] = useState<RibbonTab>("home"), [mode, setMode] = useState("Properties"), [grid, setGrid] = useState(false), [notes, setNotes] = useState(true);
   const [presenting, setPresenting] = useState(presenterMode), [previewKey, setPreviewKey] = useState(0), [zoom, setZoom] = useState(1), [projectsOpen, setProjectsOpen] = useState(false);
+  const [presentMenuOpen, setPresentMenuOpen] = useState(false);
+  const presentMenuRef = useRef<HTMLDivElement>(null);
   const [masterDialogOpen, setMasterDialogOpen] = useState(false), [diagramBuilderOpen, setDiagramBuilderOpen] = useState(false);
   const [slideMenu, setSlideMenu] = useState<{ x: number; y: number; slideId: string } | null>(null);
   const [morphFrom, setMorphFrom] = useState<typeof slide | undefined>();
@@ -392,23 +399,58 @@ export default function Studio({ slideIndex, step, print, presenterMode = false,
     setCoordinate(useDeck.getState().deck.slides.findIndex(s => s.id === useDeck.getState().currentSlideId) + 1, 0);
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   }, [presenterMode, setCoordinate]);
-  const present = useCallback(() => {
+  const startPresentation = useCallback((fromBeginning: boolean) => {
+    const startIndex = fromBeginning ? 0 : Math.max(0, index);
+    setPresentMenuOpen(false);
     setGrid(false);
     try { saveNow(); } catch { toast.error("Could not save the latest edits before opening the presenter."); }
     const url = new URL(window.location.href);
     url.searchParams.set("presenter", "true");
-    url.searchParams.set("slide", String(index + 1));
+    url.searchParams.set("slide", String(startIndex + 1));
     url.searchParams.set("step", "0");
     url.searchParams.delete("print");
     const popup = window.open(url.toString(), "PrismDeckPresenter", "popup=yes,width=1440,height=810,resizable=yes,scrollbars=no");
-    if (popup) { popup.focus(); toast.success("Presenter window opened. Keep editing in this window."); }
-    else {
+    if (popup) {
+      popup.focus();
+      toast.success(fromBeginning ? "Presentation opened from the beginning." : "Presentation opened from the current slide.");
+    } else {
       toast.error("The browser blocked the presenter window. Allow pop-ups for this Codespace preview, then try again.");
+      setMorphFrom(undefined);
+      go(startIndex, 0);
       setPresenting(true);
-      setCoordinate(index + 1, 0);
       document.documentElement.requestFullscreen?.().catch(() => {});
     }
-  }, [index, setCoordinate]);
+  }, [index, go]);
+  const present = useCallback(() => startPresentation(false), [startPresentation]);
+
+  const patchTransition = (patch: Partial<typeof slide.transition>) => st.mutate(d => {
+    const target = findSlide(d, slide.id);
+    if (target) Object.assign(target.transition, patch);
+  });
+  const applyTransition = (type: string) => {
+    patchTransition({ type });
+    setPreviewKey(key => key + 1);
+  };
+  const previewTransition = () => setPreviewKey(key => key + 1);
+  const applyTransitionToAll = () => {
+    const transition = structuredClone(currentSlide(useDeck.getState()).transition);
+    st.mutate(d => { for (const target of d.slides) target.transition = { ...transition }; });
+    toast.success("Transition settings applied to all slides.");
+  };
+  useEffect(() => {
+    if (!presentMenuOpen) return;
+    const close = (event: PointerEvent) => {
+      if (!presentMenuRef.current?.contains(event.target as Node)) setPresentMenuOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setPresentMenuOpen(false); };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [presentMenuOpen]);
+
   useEffect(() => {
     const local = loadProject(); useDeck.getState().loadDeck(local ?? makeDemoDeck());
     const target = useDeck.getState().deck.slides[Math.max(0, slideIndex - 1)]; if (target) { useDeck.getState().selectSlide(target.id); previousSlideRef.current = target; }
@@ -570,10 +612,20 @@ export default function Studio({ slideIndex, step, print, presenterMode = false,
     <Toaster theme="dark" position="bottom-right" richColors />
     <input className="hidden" ref={fileInput} type="file" accept="image/*,video/*" multiple onChange={e => { upload(e.target.files); e.target.value = ""; }} />
     {presenting ? <div className="presentation" {...swipeProps}><ScaledSlide key={slide.id} slide={slide} deck={st.deck} presenting step={step} morphFrom={morphFrom} onSlideAction={handleSlideAction} /><div className="presentation-controls"><Button title="Previous slide" variant="ghost" size="icon" onClick={() => advance(-1)}><ChevronLeft /></Button><span>{index + 1} / {st.deck.slides.length}{step > 0 ? ` · ${step}` : ""}</span><Button title="Next slide or animation" variant="ghost" size="icon" onClick={() => advance(1)}><ChevronRight /></Button><Button title="Fullscreen presentation" variant="ghost" size="icon" onClick={() => document.documentElement.requestFullscreen?.().catch(() => {})}><Maximize /></Button><Button title="Exit presentation" variant="ghost" size="icon" onClick={exit}><X /></Button></div></div> : <>
-    <header className="studio-header"><div className="studio-brand"><div className="brand-mark"><Triangle /></div><span>PrismDeck <span className="brand-studio">Studio</span></span></div><span className="header-divider" /><div className="deck-title"><input aria-label="Deck name" value={st.deck.name} onChange={e => st.mutate(d => { d.name = e.target.value; }, { coalesce: "name" })} /><ChevronDown size={13} /></div><div className="save-indicator"><span className="status-dot" />{st.saveState === "saved" ? "Saved locally" : st.saveState === "error" ? "Save failed" : "Saving…"}</div><div className="header-actions"><Button title="Save deck" size="icon" variant="ghost" onClick={safeSave}><Save /></Button><Button variant="ghost" size="sm" onClick={exportDeck}><Download /><span className="hide-small">Export</span></Button><Button onClick={present} size="sm" className="present-button"><Play size={14} fill="currentColor" />Present</Button></div></header>
-    <nav className="studio-tabs"><Button variant="ghost" size="sm" className="file-tab" onClick={() => setProjectsOpen(true)}>File</Button>{(Object.keys(TAB_LABELS) as RibbonTab[]).map(t => <Button key={t} size="sm" variant="ghost" className={tab === t ? "active-tab" : ""} onClick={() => { setTab(t); if (t === "transitions" || t === "animations") setMode("Motion"); }}>{TAB_LABELS[t]}</Button>)}<div className="tab-spacer" /><Button title="Toggle inspector" size="icon" variant="ghost" onClick={() => prefs.set({ showInspector: !prefs.showInspector })}><PanelRightClose /></Button></nav>
+    <header className="studio-header"><div className="studio-brand"><div className="brand-mark"><Triangle /></div><span>PrismDeck <span className="brand-studio">Studio</span></span></div><span className="header-divider" /><div className="deck-title"><input aria-label="Deck name" value={st.deck.name} onChange={e => st.mutate(d => { d.name = e.target.value; }, { coalesce: "name" })} /><ChevronDown size={13} /></div><div className="save-indicator"><span className="status-dot" />{st.saveState === "saved" ? "Saved locally" : st.saveState === "error" ? "Save failed" : "Saving…"}</div><div className="header-actions"><Button title="Save deck" size="icon" variant="ghost" onClick={safeSave}><Save /></Button><Button variant="ghost" size="sm" onClick={exportDeck}><Download /><span className="hide-small">Export</span></Button><div className="present-control" ref={presentMenuRef}>
+        <Button onClick={() => setPresentMenuOpen(open => !open)} size="sm" className="present-button" aria-haspopup="menu" aria-expanded={presentMenuOpen}><Play size={14} fill="currentColor" />Present<ChevronDown size={13} /></Button>
+        {presentMenuOpen && <div className="present-menu" role="menu" aria-label="Presentation start options">
+          <button type="button" role="menuitem" onClick={() => startPresentation(true)}><span><Play size={17} fill="currentColor" /></span><strong>From Beginning</strong><small>Start at slide 1 <kbd>F5</kbd></small></button>
+          <button type="button" role="menuitem" onClick={() => startPresentation(false)}><span><MonitorPlay size={17} /></span><strong>From Current Slide</strong><small>Start at slide {index + 1} <kbd>Shift + F5</kbd></small></button>
+        </div>}
+      </div></div></header>
+    <nav className="studio-tabs"><Button variant="ghost" size="sm" className="file-tab" onClick={() => setProjectsOpen(true)}>File</Button>{(Object.keys(TAB_LABELS) as RibbonTab[]).map(t => <Button key={t} size="sm" variant="ghost" className={tab === t ? "active-tab" : ""} onClick={() => { setTab(t); if (t === "transitions" || t === "animations") setMode("Motion"); }}><span className="studio-tab-icon">{TAB_ICONS[t]}</span><span>{TAB_LABELS[t]}</span></Button>)}<div className="tab-spacer" /><Button title="Toggle inspector" size="icon" variant="ghost" onClick={() => prefs.set({ showInspector: !prefs.showInspector })}><PanelRightClose /></Button></nav>
     <div className="studio-ribbon">
-      {tab === "transitions" ? <><ToolGroup label="Playback"><Tool icon={<Play />} label="Preview" onClick={() => setPreviewKey(k => k + 1)} /></ToolGroup><ToolGroup label="Transition gallery">{TRANSITIONS.map(t => <Button variant="ghost" className={`effect-tile ${slide.transition.type === t.id ? "effect-selected" : ""}`} key={t.id} onClick={() => st.mutate(d => { const s = findSlide(d, slide.id); if (s) s.transition.type = t.id; })}><span className={`effect-symbol effect-${t.id}`} /><span>{t.label}</span></Button>)}</ToolGroup></> : tab === "animations" ? <><ToolGroup label="Playback"><Tool icon={<Play />} label="Preview" onClick={() => setPreviewKey(k => k + 1)} /></ToolGroup><ToolGroup label="Entrance & emphasis">{ANIMATIONS.slice(0, 10).map(a => <Tool key={a.id} icon={<Sparkles />} label={a.label} disabled={!selected} onClick={() => { const element = selected; if (!element) return; import("@/lib/prism/factory").then(({ makeAnimation }) => st.mutate(d => findSlide(d, slide.id)?.animations.push(makeAnimation(element.id, a.kind, a.id)))); }} />)}</ToolGroup></> : tab === "design" ? <><ToolGroup label="Slide size">{SLIDE_SIZES.map(size => <Button key={size.label} variant="ghost" className={`effect-tile ${st.deck.width === size.width && st.deck.height === size.height ? "effect-selected" : ""}`} title={size.label} onClick={() => chooseSlideSize(size.width, size.height)}><span className="effect-symbol" /><span>{size.label}</span></Button>)}<Button variant="outline" size="sm" onClick={customSlideSize}>Custom size</Button></ToolGroup><ToolGroup label="Design system"><Tool icon={<Palette />} label="Master Slides & Theme" onClick={() => setMasterDialogOpen(true)} /></ToolGroup></> : <>
+      {tab === "transitions" ? <>
+        <ToolGroup label="Preview"><Tool icon={<Play />} label="Preview" onClick={previewTransition} /></ToolGroup>
+        <ToolGroup label="Transition to this slide"><TransitionGallery slide={slide} onApply={applyTransition} onPreview={previewTransition} onApplyAll={applyTransitionToAll} onPatch={patchTransition} /></ToolGroup>
+        <ToolGroup label="Timing & options"><TransitionTimingControls slide={slide} onPatch={patchTransition} onApplyAll={applyTransitionToAll} onPreview={previewTransition} /></ToolGroup>
+      </> : tab === "animations" ? <><ToolGroup label="Playback"><Tool icon={<Play />} label="Preview" onClick={() => setPreviewKey(k => k + 1)} /></ToolGroup><ToolGroup label="Entrance & emphasis">{ANIMATIONS.slice(0, 10).map(a => <Tool key={a.id} icon={<Sparkles />} label={a.label} disabled={!selected} onClick={() => { const element = selected; if (!element) return; import("@/lib/prism/factory").then(({ makeAnimation }) => st.mutate(d => findSlide(d, slide.id)?.animations.push(makeAnimation(element.id, a.kind, a.id)))); }} />)}</ToolGroup></> : tab === "design" ? <><ToolGroup label="Slide size">{SLIDE_SIZES.map(size => <Button key={size.label} variant="ghost" className={`effect-tile ${st.deck.width === size.width && st.deck.height === size.height ? "effect-selected" : ""}`} title={size.label} onClick={() => chooseSlideSize(size.width, size.height)}><span className="effect-symbol" /><span>{size.label}</span></Button>)}<Button variant="outline" size="sm" onClick={customSlideSize}>Custom size</Button></ToolGroup><ToolGroup label="Design system"><Tool icon={<Palette />} label="Master Slides & Theme" onClick={() => setMasterDialogOpen(true)} /></ToolGroup></> : <>
         {basicGroups.map(g => <ToolGroup key={g.id} label={g.label}>{g.id === "shapes" ? <ShapePicker onSelect={shape => st.addElement(makeShape(shape))} /> : g.tools.filter(t => !t.hidden && actions[t.id] && toolMeta[t.id]).map(t => <Tool key={t.id} {...toolMeta[t.id]} disabled={t.id === "edit.undo" ? !st.past.length : t.id === "edit.redo" ? !st.future.length : false} onClick={actions[t.id]} />)}</ToolGroup>)}
         {tab === "home" && <><ToolGroup label="Insert"><Tool icon={<Type />} label="Text box" onClick={actions["insert.text"]} /><ShapePicker onSelect={shape => st.addElement(makeShape(shape))} /><Tool icon={<ImagePlus />} label="Image" onClick={actions["insert.image"]} /></ToolGroup><ToolGroup label="Arrange"><Tool icon={<Layers />} label="Layers" onClick={() => { setMode("Layers"); prefs.set({ showInspector: true }); }} /><Tool icon={<Copy />} label="Duplicate" onClick={st.duplicateSelected} disabled={!selected} /><Tool icon={<Layers />} label="Group" onClick={() => st.groupElements()} disabled={st.selectedElementIds.length < 2} /><Tool icon={<Layers />} label="Ungroup" onClick={() => st.ungroupElements()} disabled={!selected?.groupId} /><Tool icon={<BookmarkPlus />} label="Save as custom shape" onClick={saveSelectedCustomShape} disabled={!canSaveSelectedCustomShape} /></ToolGroup><ToolGroup label="Align & distribute"><Tool icon={<AlignLeft />} label="Align left" onClick={() => alignSelected("left")} disabled={st.selectedElementIds.length < 2} /><Tool icon={<AlignCenter />} label="Center X" onClick={() => alignSelected("center-x")} disabled={st.selectedElementIds.length < 2} /><Tool icon={<AlignRight />} label="Align right" onClick={() => alignSelected("right")} disabled={st.selectedElementIds.length < 2} /><Tool icon={<AlignLeft />} label="Align top" onClick={() => alignSelected("top")} disabled={st.selectedElementIds.length < 2} /><Tool icon={<AlignCenter />} label="Center Y" onClick={() => alignSelected("center-y")} disabled={st.selectedElementIds.length < 2} /><Tool icon={<AlignRight />} label="Align bottom" onClick={() => alignSelected("bottom")} disabled={st.selectedElementIds.length < 2} /><Tool icon={<ArrowLeftRight />} label="Distribute X" onClick={() => distributeSelected("x")} disabled={st.selectedElementIds.length < 3} /><Tool icon={<ArrowUpDown />} label="Distribute Y" onClick={() => distributeSelected("y")} disabled={st.selectedElementIds.length < 3} /></ToolGroup></>}
         {tab === "insert" && <><ToolGroup label="Data & diagrams"><Tool icon={<BarChart3 />} label="Bar chart" onClick={() => st.addElement(makeChart("bar", { title: "Sample data — replace with yours" }))} /><Tool icon={<BarChart3 />} label="Line chart" onClick={() => st.addElement(makeChart("line", { title: "Trend over time" }))} /><Tool icon={<Network />} label="Smart Diagram" onClick={() => setDiagramBuilderOpen(true)} /></ToolGroup><ToolGroup label="Custom library"><CustomShapePicker shapes={customShapes} onInsert={insertCustomShape} onDelete={removeCustomShape} onRename={renameCustomShape} onMoveFolder={moveCustomShapeFolder} /></ToolGroup></>}
