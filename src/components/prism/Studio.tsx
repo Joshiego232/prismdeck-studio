@@ -17,7 +17,7 @@ import { createSlideMaster } from "@/lib/prism/masters";
 import { PRESENTATION_THEMES } from "@/lib/prism/themes";
 import { createCustomShapeDefinition, deleteCustomShape, instantiateCustomShape, listCustomShapes, saveCustomShape, updateCustomShape, type CustomShapeDefinition } from "@/lib/prism/customShapes";
 import { ScaledSlide } from "./ScaledSlide";
-import { Inspector, TransitionControls } from "./Inspector";
+import { Inspector } from "./Inspector";
 import { MasterSlidesDialog } from "./MasterSlidesDialog";
 import { DiagramBuilder } from "./DiagramBuilder";
 import { TransitionGallery, TransitionTimingControls } from "./TransitionGallery";
