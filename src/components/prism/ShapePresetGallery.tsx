@@ -91,7 +91,7 @@ export function createShapePresetElements(id: string, slideWidth: number, slideH
       fill: part.fill, fill2: part.gradient?.[part.gradient.length - 1] ?? part.fill,
       gradient: !!part.gradient, gradientColors: part.gradient ?? [part.fill, part.fill],
       gradientAngle: 135, gradientType: "linear",
-      stroke: part.stroke ?? "transparent", strokeWidth: (part.strokeWidth ?? 0) * scale,
+      stroke: part.stroke ?? (part.shape === "line" || part.shape === "arrow" ? part.fill : "transparent"), strokeWidth: (part.strokeWidth ?? (part.shape === "line" || part.shape === "arrow" ? 8 : 0)) * scale,
       rotation: part.rotation ?? 0, radius: (part.radius ?? 0) * scale,
       groupId,
     });
