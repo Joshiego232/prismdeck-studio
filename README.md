@@ -104,4 +104,10 @@ Remembered-position snapping and the reusable custom-shape library are active. B
 
 ## Editable illustration presets
 
-The Home ribbon's **Insert** group includes an **Illustrations** gallery with multicolour, layered designs for Nature, Space, Buildings, Landscapes, and Objects. Presets are composed from native PrismDeck shapes, inserted as a single group, and remain editable: use **Ungroup** to adjust individual leaves, windows, planets, highlights, and other layers. The initial catalogue includes trees, foliage, flowers, planets, a solar system, constellations, houses, high-rises, skylines, landscapes, a wind turbine, and a rocket.
+The Home ribbon's **Insert** group includes a searchable **Illustrations** gallery with more than 60 multicolour designs across Trees, Grass & foliage, Flowers, Planets, Buildings, Landscapes, and Objects.
+
+The botanical collection distinguishes individual species and silhouettes: silver birch, oak, cedar, Scots pine, Norway spruce, silver fir, apple, maple, cypress, coast redwood, giant sequoia, weeping willow, cherry blossom, magnolia, baobab, acacia, date palm, olive, poplar, and dogwood. Separate plant presets cover grass tufts, flowering meadow, cattails, fern, bamboo, wheat, daisy, sunflower, tulip, rose, lavender, hibiscus, bluebells, hydrangea, lotus, and blossom sprigs.
+
+The space collection covers the Sun, all eight major planets, Earth's Moon, and Pluto, with individual surface and atmosphere details. Architecture includes homes, cottages, cabins, glass towers, apartments, Art Deco towers, schools, factories, greenhouses, churches, and townhouses.
+
+Presets are assembled from native PrismDeck shapes—not flattened images. Each illustration is inserted as one group so it can be placed and resized together; use **Ungroup** to edit its leaves, petals, stems, bark, fruit, windows, facade panels, rings, craters, highlights, and other parts. The gallery previews use the same layered colour artwork, and category counts help you browse the growing library.
