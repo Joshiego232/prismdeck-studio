@@ -9,12 +9,13 @@ import { useDeck } from "@/lib/prism/store";
 import { fontStack, loadWebFont } from "@/lib/prism/fonts";
 import { useResolvedSrc } from "@/lib/prism/assets";
 import { animFrames, buildSteps, prefersReducedMotion, transitionFrames } from "@/lib/prism/effects";
+import { buildVisualFilter, buildVisualBoxShadow } from "@/lib/prism/visualAdjustments";
 
 function ElementContent({ el, presenting, fillStyle }: { el: SlideElement; presenting: boolean; fillStyle?: CSSProperties }) {
   const src = useResolvedSrc("src" in el ? el.src : "");
   useEffect(() => { if ("fontFamily" in el) loadWebFont(el.fontFamily); }, [el]);
   if (el.type === "text") return <TextContent el={el} presenting={presenting} />;
-  if (el.type === "image") return <img draggable={false} src={src} alt={el.alt} className="h-full w-full" style={{ objectFit: el.fit, borderRadius: el.radius, filter: `brightness(${1 + el.adjust.brightness / 100}) contrast(${1 + el.adjust.contrast / 100}) saturate(${1 + el.adjust.saturation / 100})`, transform: `scale(${el.flipX ? -1 : 1},${el.flipY ? -1 : 1})` }} />;
+  if (el.type === "image") return <img draggable={false} src={src} alt={el.alt} className="h-full w-full" style={{ objectFit: el.fit, borderRadius: el.radius, transform: `scale(${el.flipX ? -1 : 1},${el.flipY ? -1 : 1})` }} />;
   if (el.type === "video") return <video src={src} poster={el.poster} controls={presenting} autoPlay={presenting && el.autoplay} muted={el.muted} loop={el.loop} className="h-full w-full" style={{ objectFit: el.fit }} />;
   if (el.type === "audio") return <audio src={src} controls autoPlay={presenting && el.autoplay} loop={el.loop} />;
   if (el.type === "chart") return <ChartRenderer chart={el} />;
@@ -344,7 +345,7 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
               backgroundRepeat: "no-repeat",
             };
           }
-          return <div key={el.id} data-element-id={el.id} data-object-name={el.name} className={`slide-object ${editable ? "editable-object" : ""} ${editable && selected.includes(el.id) ? "object-selected" : ""}`} style={{ left: el.x, top: el.y, width: el.w, height: el.h, transform: `rotate(${el.rotation}deg)`, opacity: el.opacity, cursor: presenting && (el.hyperlink || el.slideAction) ? "pointer" : undefined, filter: el.blur ? `blur(${el.blur}px)` : undefined, boxShadow: el.shadow.on ? `${el.shadow.x}px ${el.shadow.y}px ${el.shadow.blur}px ${el.shadow.color}` : undefined }} onPointerDown={e => manipulate(e, el, "move")} onClick={e => { if (!presenting) return; if (el.slideAction && onSlideAction) { e.stopPropagation(); onSlideAction(el.slideAction); return; } if (el.hyperlink) { e.stopPropagation(); const raw = el.hyperlink.trim(); const href = /^(https?:|mailto:|tel:)/i.test(raw) ? raw : `https://${raw}`; try { const parsed = new URL(href); if (["http:", "https:", "mailto:", "tel:"].includes(parsed.protocol)) window.open(href, "_blank", "noopener,noreferrer"); } catch { /* Ignore invalid presentation links. */ } } }} onDoubleClick={e => { if (editable && el.type === "text") { e.stopPropagation(); useDeck.getState().setEditingText(el.id); } }}>
+          return <div key={el.id} data-element-id={el.id} data-object-name={el.name} className={`slide-object ${editable ? "editable-object" : ""} ${editable && selected.includes(el.id) ? "object-selected" : ""}`} style={{ left: el.x, top: el.y, width: el.w, height: el.h, transform: `rotate(${el.rotation}deg)`, opacity: el.opacity, cursor: presenting && (el.hyperlink || el.slideAction) ? "pointer" : undefined, filter: buildVisualFilter(el), boxShadow: buildVisualBoxShadow(el) }} onPointerDown={e => manipulate(e, el, "move")} onClick={e => { if (!presenting) return; if (el.slideAction && onSlideAction) { e.stopPropagation(); onSlideAction(el.slideAction); return; } if (el.hyperlink) { e.stopPropagation(); const raw = el.hyperlink.trim(); const href = /^(https?:|mailto:|tel:)/i.test(raw) ? raw : `https://${raw}`; try { const parsed = new URL(href); if (["http:", "https:", "mailto:", "tel:"].includes(parsed.protocol)) window.open(href, "_blank", "noopener,noreferrer"); } catch { /* Ignore invalid presentation links. */ } } }} onDoubleClick={e => { if (editable && el.type === "text") { e.stopPropagation(); useDeck.getState().setEditingText(el.id); } }}>
             <MemoElementContent el={el} presenting={presenting} fillStyle={groupFillStyle} />
             {editable && selected.includes(el.id) && <>
               {(["nw", "n", "ne", "e", "se", "s", "sw", "w"] as ResizeHandle[]).map(handle => <span key={handle} className="resize-handle" data-handle={handle} role="presentation" aria-label={`Resize ${handle}`} onPointerDown={e => manipulate(e, el, "resize", handle)} />)}
