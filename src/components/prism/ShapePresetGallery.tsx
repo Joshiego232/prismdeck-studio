@@ -415,7 +415,7 @@ export function ShapePresetGallery({onInsert}:{onInsert:(id:string)=>void}){
     return()=>{document.removeEventListener("pointerdown",close);document.removeEventListener("keydown",key);};
   },[open]);
   const toggle=()=>{
-    if(!open){const rect=anchor.current?.getBoundingClientRect();if(rect)setPosition({top:Math.max(12,Math.min(rect.bottom+8,window.innerHeight-700)),left:Math.max(12,Math.min(rect.left,window.innerWidth-760))});}
+    if(!open){const rect=anchor.current?.getBoundingClientRect();if(rect)setPosition({top:Math.max(12,Math.min(rect.bottom+8,window.innerHeight-780)),left:Math.max(12,Math.min(rect.left,window.innerWidth-840))});}
     setOpen(value=>!value);
   };
   return <>
