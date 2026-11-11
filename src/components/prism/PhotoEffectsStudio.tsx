@@ -246,7 +246,7 @@ export function PhotoEffectsStudio({ elements, slide, deck, onAdjust, onEffectPa
             </main>
           </div>
         </section>
-      </div>,document.body
+      </div>,popupRoot
     )}
   </>;
 }
