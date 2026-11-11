@@ -23,11 +23,20 @@ bun run build
 
 GitHub Actions runs the same checks on pushes to `main` and feature branches, and on pull requests into `main`.
 
+## Ribbon and transition gallery
+
+- The redesigned ribbon uses icon-led tabs, grouped tools, responsive layouts and PrismDeck's own cyan/indigo visual identity.
+- The Transitions tab includes animated mini-previews and a full gallery grouped into Subtle, Dynamic and Dramatic effects.
+- Hover or focus a transition tile to see its miniature animation and larger preview; choose a tile to apply it to the selected slide.
+- Transition timing includes duration and direction, plus Preview and Apply to All actions.
+- The Present menu offers **From Beginning** and **From Current Slide**. Keyboard shortcuts follow the same convention: F5 and Shift+F5 respectively.
+
 ## Keyboard shortcuts
 
 | Shortcut | Action |
 |---|---|
-| `F5` | Open the separate presenter window |
+| `F5` | Present from the beginning |
+| `Shift + F5` | Present from the current slide |
 | `Shift + G` | Group selected objects |
 | `Ctrl/Cmd + Shift + G` | Ungroup selected objects |
 | `Shift + K` | Add or edit a hyperlink on selected objects |
@@ -91,3 +100,14 @@ No license has been assigned. All rights remain with the project owner unless a 
 ## Staged capabilities
 
 Remembered-position snapping and the reusable custom-shape library are active. Bible verse insertion remains staged and inaccessible until separately authorized. See `STAGED_FEATURES.md`.
+
+
+## Editable illustration presets
+
+The Home ribbon's **Insert** group includes a searchable **Illustrations** gallery with more than 60 multicolour designs across Trees, Grass & foliage, Flowers, Planets, Buildings, Landscapes, and Objects.
+
+The botanical collection distinguishes individual species and silhouettes: silver birch, oak, cedar, Scots pine, Norway spruce, silver fir, apple, maple, cypress, coast redwood, giant sequoia, weeping willow, cherry blossom, magnolia, baobab, acacia, date palm, olive, poplar, and dogwood. Separate plant presets cover grass tufts, flowering meadow, cattails, fern, bamboo, wheat, daisy, sunflower, tulip, rose, lavender, hibiscus, bluebells, hydrangea, lotus, and blossom sprigs.
+
+The space collection covers the Sun, all eight major planets, Earth's Moon, and Pluto, with individual surface and atmosphere details. Architecture includes homes, cottages, cabins, glass towers, apartments, Art Deco towers, schools, factories, greenhouses, churches, and townhouses.
+
+Presets are assembled from native PrismDeck shapes—not flattened images. Each illustration is inserted as one group so it can be placed and resized together; use **Ungroup** to edit its leaves, petals, stems, bark, fruit, windows, facade panels, rings, craters, highlights, and other parts. The gallery previews use the same layered colour artwork, and category counts help you browse the growing library.
