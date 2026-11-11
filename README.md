@@ -100,3 +100,8 @@ No license has been assigned. All rights remain with the project owner unless a 
 ## Staged capabilities
 
 Remembered-position snapping and the reusable custom-shape library are active. Bible verse insertion remains staged and inaccessible until separately authorized. See `STAGED_FEATURES.md`.
+
+
+## Editable illustration presets
+
+The Home ribbon's **Insert** group includes an **Illustrations** gallery with multicolour, layered designs for Nature, Space, Buildings, Landscapes, and Objects. Presets are composed from native PrismDeck shapes, inserted as a single group, and remain editable: use **Ungroup** to adjust individual leaves, windows, planets, highlights, and other layers. The initial catalogue includes trees, foliage, flowers, planets, a solar system, constellations, houses, high-rises, skylines, landscapes, a wind turbine, and a rocket.
