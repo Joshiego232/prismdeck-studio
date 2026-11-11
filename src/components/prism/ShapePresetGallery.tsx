@@ -171,12 +171,22 @@ function makeFlower(id:string,name:string,kind:string):Preset{
   }else if(kind==="cherry"){
     p.push(q("rect",350,250,22,310,"#80523b"),ln(360,340,250,185,"#80523b",15),ln(360,340,475,180,"#80523b",15));
     [[180,100],[290,55],[410,85],[500,140],[230,220],[390,215]].forEach(([x,y],i)=>{for(let j=0;j<5;j++){const a=j*Math.PI*2/5;p.push(ell(x+Math.cos(a)*27-16,y+Math.sin(a)*24-13,34,28,i%2?"#ffd0e0":"#f49fbd",a*180/Math.PI));}p.push(ell(x-8,y-6,18,18,"#f8d77d"));});
-  }else{
-    p.push(q("rect",350,255,20,305,stem),q("triangle",235,370,135,175,"#369653",{rotation:-25}),q("triangle",360,390,130,155,"#4fb764",{rotation:20}));
-    for(let i=0;i<9;i++){const x=160+i*48,y=260-(i%3)*72;flowerHead(p,x,y,kind==="wildflowers"?34:28,["#f2c95b","#f18aa5","#9b8bed","#f7f3e7"][i%4]);}
+  }else if(kind==="daisy"){
+    p.push(q("rect",355,245,18,315,stem),q("triangle",235,365,140,175,"#3e9c58",{rotation:-24}),q("triangle",360,390,145,160,"#55b967",{rotation:20}));
+    flowerHead(p,365,155,112,"#fff7e8");
+    p.push(ell(338,132,42,16,"#ffffff",18,{opacity:.62}),ell(372,168,34,14,"#ffffff",-12,{opacity:.55}));
+  }else if(kind==="wildflowers"){
+    p.push(q("rect",355,260,18,300,stem),q("triangle",225,380,145,165,"#369653",{rotation:-22}),q("triangle",360,390,140,150,"#4fb764",{rotation:20}));
+    flowerHead(p,210,245,48,"#f3c85d");flowerHead(p,355,145,58,"#f18aa5");flowerHead(p,510,235,50,"#9b8bed");
+  }else if(kind==="hydrangea"){
+    p.push(q("rect",355,260,20,300,stem),q("triangle",230,365,145,180,"#369653",{rotation:-22}),q("triangle",360,390,140,150,"#4fb764",{rotation:20}));
+    [[285,145],[355,110],[425,150],[330,205],[400,220]].forEach(([x,y],i)=>{for(let j=0;j<5;j++){const a=j*Math.PI*2/5;p.push(ell(x+Math.cos(a)*18-12,y+Math.sin(a)*16-10,25,21,i%2?"#9c9bf2":"#76a9e8",a*180/Math.PI));}p.push(ell(x-5,y-4,12,12,"#f7d77a"));});
+  }else if(kind==="lotus"){
+    p.push(ell(155,455,410,90,"#3b8c61"),ell(225,478,150,55,"#58aa6b",-18),ell(385,475,150,55,"#58aa6b",18));
+    p.push(q("triangle",300,205,125,240,"#e95e91",{rotation:-25}),q("triangle",335,160,125,270,"#ff9fbd"),q("triangle",375,205,125,240,"#e85688",{rotation:25}),ell(335,260,95,100,"#ffd18a"));
   }
   p.push(ell(260,548,210,20,"#244632",0,{opacity:.2}));
-  const desc=kind==="sunflower"?"Tall sunflower with a full petal ring, seed head and broad leaves.":kind==="tulip"?"Three-petal tulip with a sculpted cup, upright stem and long leaves.":kind==="rose"?"Layered rose bloom with curled petal rings, stem and leaves.":kind==="lavender"?"Three lavender flower spikes with clustered florets and narrow foliage.":kind==="hibiscus"?"Tropical hibiscus with five broad petals and a projecting stamen.":kind==="bluebells"?"Drooping bluebell stems with individual bell-shaped flowers.":kind==="cherry"?"Cherry blossom branch with five-petal flowers and warm centres.":"A botanical flower illustration with a distinct stem, leaves and spaced blooms.";
+  const desc=kind==="daisy"?"Single white daisy with an orderly petal ring, golden disc, stem and leaves.":kind==="wildflowers"?"Three distinct meadow blooms with separate stems and leaves.":kind==="hydrangea"?"Rounded hydrangea flower head built from small grouped florets.":kind==="lotus"?"Layered lotus bloom floating above two broad water leaves.":kind==="sunflower"?"Tall sunflower with a full petal ring, seed head and broad leaves.":kind==="tulip"?"Three-petal tulip with a sculpted cup, upright stem and long leaves.":kind==="rose"?"Layered rose bloom with curled petal rings, stem and leaves.":kind==="lavender"?"Three lavender flower spikes with clustered florets and narrow foliage.":kind==="hibiscus"?"Tropical hibiscus with five broad petals and a projecting stamen.":kind==="bluebells"?"Drooping bluebell stems with individual bell-shaped flowers.":kind==="cherry"?"Cherry blossom branch with five-petal flowers and warm centres.":"A botanical flower illustration with a distinct stem, leaves and spaced blooms.";
   return preset(id,name,"Flowers",desc,p);
 }
 
@@ -289,7 +299,7 @@ const PRESETS:Preset[]=[
   makeGrass("grass-tuft","Grass blades","tuft"),makeGrass("meadow-strip","Flowering meadow","meadow"),makeGrass("cattails","Cattails & reeds","reeds"),
   makeGrass("fern-frond","Fern frond","fern"),makeGrass("bamboo-grove","Bamboo grove","bamboo"),makeGrass("wheat-stalks","Wheat stalks","wheat"),
 
-  makeFlower("daisy","White daisy","daisy"),makeFlower("sunflower","Sunflower","sunflower"),makeFlower("tulip","Tulip","tulip"),makeFlower("rose","Red rose","rose"),
+  makeFlower("daisy","White daisy","daisy"),makeFlower("sunflower","Sunflower","sunflower"),makeFlower("tulip","Tulip","tulip"),makeFlower("rose","Red rose","rose"),makeFlower("wildflowers","Wildflower cluster","wildflowers"),makeFlower("hydrangea","Hydrangea","hydrangea"),makeFlower("lotus","Lotus flower","lotus"),
   makeFlower("lavender","Lavender","lavender"),makeFlower("hibiscus","Hibiscus","hibiscus"),makeFlower("bluebells","Bluebells","bluebells"),makeFlower("cherry-sprig","Cherry blossom sprig","cherry"),
 
   planetPreset("sun","Sun","Radiant star with warm layered surface and evenly spaced rays.","sun"),
