@@ -5,15 +5,35 @@ type Dir = Transition["direction"];
 const vec = (d: Dir, n = 100): [number, number] =>
   d === "left" ? [-n, 0] : d === "right" ? [n, 0] : d === "up" ? [0, -n] : [0, n];
 
-export interface TransitionPreset { id: string; label: string; directional?: boolean }
+export type TransitionCategory = "Subtle" | "Dynamic" | "Dramatic";
+export interface TransitionPreset {
+  id: string;
+  label: string;
+  category: TransitionCategory;
+  description: string;
+  directional?: boolean;
+}
+
+/** Transitions are applied to the slide being entered, matching PowerPoint's slide-transition model. */
 export const TRANSITIONS: TransitionPreset[] = [
-  { id: "none", label: "None" }, { id: "fade", label: "Fade" }, { id: "dissolve", label: "Dissolve" },
-  { id: "push", label: "Push", directional: true }, { id: "wipe", label: "Wipe", directional: true },
-  { id: "split", label: "Split" }, { id: "reveal", label: "Reveal", directional: true },
-  { id: "zoom", label: "Zoom" }, { id: "flip", label: "Flip", directional: true },
-  { id: "cube", label: "Cube turn", directional: true }, { id: "gallery", label: "Gallery", directional: true },
-  { id: "morph", label: "Morph" }, { id: "blur", label: "Blur" }, { id: "curtain", label: "Curtain" },
-  { id: "spin", label: "Spin" }, { id: "glitch", label: "Glitch" }, { id: "slide", label: "Cover", directional: true },
+  { id: "none", label: "None", category: "Subtle", description: "Move directly to the next slide without an animated effect." },
+  { id: "morph", label: "Morph", category: "Subtle", description: "Smoothly move and resize matching objects between consecutive slides.", directional: false },
+  { id: "fade", label: "Fade", category: "Subtle", description: "Gently fade the next slide into view." },
+  { id: "dissolve", label: "Dissolve", category: "Subtle", description: "Blend into the next slide with a soft dissolving light effect." },
+  { id: "cut", label: "Cut", category: "Subtle", description: "Switch instantly to the next slide." },
+  { id: "push", label: "Push", category: "Dynamic", description: "Push the previous slide away as the next slide enters.", directional: true },
+  { id: "wipe", label: "Wipe", category: "Dynamic", description: "Reveal the next slide with a directional wipe.", directional: true },
+  { id: "split", label: "Split", category: "Dynamic", description: "Open the next slide from the centre in two halves." },
+  { id: "reveal", label: "Reveal", category: "Dynamic", description: "Move the previous slide aside to reveal the next one.", directional: true },
+  { id: "zoom", label: "Zoom", category: "Dynamic", description: "Bring the next slide forward with a cinematic zoom." },
+  { id: "blur", label: "Blur", category: "Dynamic", description: "Transition through a soft focus shift." },
+  { id: "slide", label: "Cover", category: "Dynamic", description: "Cover the previous slide with the next slide.", directional: true },
+  { id: "flip", label: "Flip", category: "Dramatic", description: "Turn the slide over on a horizontal or vertical axis.", directional: true },
+  { id: "cube", label: "Cube", category: "Dramatic", description: "Rotate between slides as two faces of a 3D cube.", directional: true },
+  { id: "gallery", label: "Gallery", category: "Dramatic", description: "Move between slides with a layered gallery motion.", directional: true },
+  { id: "curtain", label: "Curtain", category: "Dramatic", description: "Open the next slide like a stage curtain." },
+  { id: "spin", label: "Spin", category: "Dramatic", description: "Spin the incoming slide into place." },
+  { id: "glitch", label: "Glitch", category: "Dramatic", description: "Use a brief digital signal-break effect." },
 ];
 
 export const EASINGS: { label: string; value: string }[] = [
@@ -28,7 +48,8 @@ export function transitionFrames(t: Transition): TransitionFrames {
   const [x, y] = vec(t.direction);
   const pct = (a: number, b: number) => `translate(${a}%, ${b}%)`;
   switch (t.type) {
-    case "none": return { incoming: [{ opacity: 1 }, { opacity: 1 }], outgoing: [{ opacity: 0 }, { opacity: 0 }] };
+    case "none":
+    case "cut": return { incoming: [{ opacity: 1 }, { opacity: 1 }], outgoing: [{ opacity: 0 }, { opacity: 0 }] };
     case "fade": return { incoming: [{ opacity: 0 }, { opacity: 1 }], outgoing: [{ opacity: 1 }, { opacity: 0 }] };
     case "dissolve": return { incoming: [{ opacity: 0, filter: "contrast(2) brightness(1.4)" }, { opacity: 1, filter: "none" }], outgoing: [{ opacity: 1 }, { opacity: 1 }] };
     case "push": return { incoming: [{ transform: pct(-x, -y) }, { transform: pct(0, 0) }], outgoing: [{ transform: pct(0, 0) }, { transform: pct(x, y) }] };
@@ -50,7 +71,10 @@ export function transitionFrames(t: Transition): TransitionFrames {
       return { perspective: true, incoming: [{ transform: `translateX(${50 * s}%) rotateY(${-90 * s}deg) translateX(${50 * s}%)`, filter: "brightness(.5)" }, { transform: "translateX(0) rotateY(0) translateX(0)", filter: "brightness(1)" }], outgoing: [{ transform: "translateX(0) rotateY(0) translateX(0)", filter: "brightness(1)" }, { transform: `translateX(${-50 * s}%) rotateY(${90 * s}deg) translateX(${-50 * s}%)`, filter: "brightness(.5)" }] };
     }
     case "gallery": return { incoming: [{ transform: `${pct(-x * 1.1, -y * 1.1)} scale(.75)`, offset: 0 }, { transform: `${pct(-x * 0.1, -y * 0.1)} scale(.75)`, offset: 0.6 }, { transform: "translate(0,0) scale(1)" }], outgoing: [{ transform: "translate(0,0) scale(1)" }, { transform: `${pct(x * 0.1, y * 0.1)} scale(.75)`, offset: 0.4 }, { transform: `${pct(x * 1.1, y * 1.1)} scale(.75)` }] };
-    case "morph": return { incoming: [{ opacity: 0 }, { opacity: 1 }], outgoing: [{ opacity: 1 }, { opacity: 0 }] };
+    case "morph": return {
+      incoming: [{ opacity: 0, transform: "translateY(10px) scale(.94)" }, { opacity: 1, transform: "translateY(0) scale(1)" }],
+      outgoing: [{ opacity: 1, transform: "translateY(0) scale(1)" }, { opacity: 0, transform: "translateY(-7px) scale(1.025)" }],
+    };
     case "blur": return { incoming: [{ opacity: 0, filter: "blur(40px)" }, { opacity: 1, filter: "blur(0)" }], outgoing: [{ opacity: 1, filter: "blur(0)" }, { opacity: 0, filter: "blur(40px)" }] };
     case "curtain": return { incoming: [{ clipPath: "inset(0 0 100% 0)" }, { clipPath: "inset(0 0 0% 0)" }], outgoing: [{ transform: "scaleY(1)", filter: "brightness(1)" }, { transform: "scaleY(1)", filter: "brightness(.3)" }] };
     case "spin": return { incoming: [{ transform: "rotate(-180deg) scale(0)", opacity: 0 }, { transform: "rotate(0) scale(1)", opacity: 1 }], outgoing: [{ transform: "rotate(0) scale(1)", opacity: 1 }, { transform: "rotate(180deg) scale(0)", opacity: 0 }] };
