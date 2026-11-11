@@ -111,3 +111,9 @@ The botanical collection distinguishes individual species and silhouettes: silve
 The space collection covers the Sun, all eight major planets, Earth's Moon, and Pluto, with individual surface and atmosphere details. Architecture includes homes, cottages, cabins, glass towers, apartments, Art Deco towers, schools, factories, greenhouses, churches, and townhouses.
 
 Presets are assembled from native PrismDeck shapes—not flattened images. Each illustration is inserted as one group so it can be placed and resized together; use **Ungroup** to edit its leaves, petals, stems, bark, fruit, windows, facade panels, rings, craters, highlights, and other parts. The gallery previews use the same layered colour artwork, and category counts help you browse the growing library.
+
+## Photo & Effects Studio
+
+Select a visual element and open **Quick Edit** or **Photo & Effects Studio** from the Inspector's Photo & visual effects section. Quick Edit provides fast corrections and one-tap looks. The full studio adds Light, Color, Detail, and Effects workspaces with exposure, brightness, contrast, highlights, shadows, blacks, whites, saturation, vibrance, temperature, tint, hue, clarity, sharpness, fade, vignette, glow, shadow, and blur controls.
+
+Adjustments are stored non-destructively with the selected document elements and rendered consistently on images, shapes, text, charts, and video. Older image adjustment values are retained and mapped into the shared adjustment model for compatibility. Multiple selected visual elements can be adjusted together.

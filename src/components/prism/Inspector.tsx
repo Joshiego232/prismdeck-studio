@@ -6,8 +6,11 @@ import { FONT_CATALOGUE, loadWebFont } from "@/lib/prism/fonts";
 import { TRANSITIONS, ANIMATIONS, EASINGS } from "@/lib/prism/effects";
 import { makeAnimation } from "@/lib/prism/factory";
 import { normalizeGradientColors } from "@/lib/prism/gradients";
-import type { Animation, Background, GradientType, Slide, SlideElement } from "@/lib/prism/types";
+import type { Animation, Background, Deck, GradientType, Slide, SlideElement } from "@/lib/prism/types";
 import { parseChartData, serializeChartData } from "@/lib/prism/charts";
+import { PhotoEffectsStudio } from "./PhotoEffectsStudio";
+import { DEFAULT_ADJUST, type VisualAdjustments } from "@/lib/prism/types";
+import { DEFAULT_VISUAL_ADJUSTMENTS, toLegacyImageAdjustments } from "@/lib/prism/visualAdjustments";
 
 export function Field({ label, children }: { label: string; children: ReactNode }) { return <label className="property-field"><span>{label}</span>{children}</label>; }
 export function Numeric({ label, value, onChange, min, max }: { label: string; value: number; onChange: (v: number) => void; min?: number; max?: number }) { return <Field label={label}><input aria-label={label} type="number" value={Math.round(value * 100) / 100} min={min} max={max} onChange={e => { const n = Number(e.target.value); if (Number.isFinite(n)) onChange(Math.min(max ?? Infinity, Math.max(min ?? -Infinity, n))); }} /></Field>; }
@@ -138,6 +141,30 @@ export function Inspector({ mode, onMode }: { mode: string; onMode: (s: string) 
   </div>;
   const el = slide.elements.find(e => st.selectedElementIds.includes(e.id));
   const update = (p: Record<string, unknown>) => st.updateElements(st.selectedElementIds, p, "inspector");
+  const selectedVisualElements = slide.elements.filter(item => st.selectedElementIds.includes(item.id) && item.type !== "audio");
+  const selectedVisualIds = selectedVisualElements.map(item => item.id);
+  const updateVisualAdjustments = (adjustments: VisualAdjustments) => st.mutate(d => {
+    const current = findSlide(d, slide.id);
+    const ids = new Set(selectedVisualIds);
+    for (const item of current?.elements ?? []) {
+      if (!ids.has(item.id) || item.type === "audio") continue;
+      item.visualAdjustments = { ...adjustments };
+      if (item.type === "image") item.adjust = { ...toLegacyImageAdjustments(adjustments) };
+    }
+  }, { coalesce: "photo-effects" });
+  const updatePhotoEffects = (patch: Record<string, unknown>) => st.updateElements(selectedVisualIds, patch, "photo-effects");
+  const resetPhotoEffects = () => st.mutate(d => {
+    const current = findSlide(d, slide.id);
+    const ids = new Set(selectedVisualIds);
+    for (const item of current?.elements ?? []) {
+      if (!ids.has(item.id) || item.type === "audio") continue;
+      item.visualAdjustments = { ...DEFAULT_VISUAL_ADJUSTMENTS };
+      item.blur = 0;
+      item.shadow = { ...item.shadow, on: false };
+      item.glow = { ...item.glow, on: false };
+      if (item.type === "image") item.adjust = { ...DEFAULT_ADJUST };
+    }
+  }, { coalesce: "photo-effects" });
   const selectedShapeIds = slide.elements.filter(item => item.type === "shape" && st.selectedElementIds.includes(item.id)).map(item => item.id);
   const updateShapes = (p: Record<string, unknown>) => { if (selectedShapeIds.length) st.updateElements(selectedShapeIds, p, "shape-inspector"); };
   const patchSlide = (p: Partial<Slide>) => st.mutate(d => { const s = findSlide(d, slide.id); if (s) Object.assign(s, p); });
@@ -232,6 +259,12 @@ export function Inspector({ mode, onMode }: { mode: string; onMode: (s: string) 
         </>}
       </section>
 
+      {selectedVisualElements.length > 0 && <section className="inspector-section">
+        <h3>Photo & visual effects</h3>
+        <p className="text-[10px] text-muted-foreground">Professional tonal, colour, detail and glow controls for images, shapes, text, charts and video.</p>
+        <PhotoEffectsStudio elements={selectedVisualElements} slide={slide} deck={st.deck as Deck} onAdjust={updateVisualAdjustments} onEffectPatch={updatePhotoEffects} onReset={resetPhotoEffects} />
+      </section>}
+
       {el?.type === "text" && <section className="inspector-section">
         <h3>Typography</h3>
         <Field label="Font family"><select value={el.fontFamily} onChange={e => { loadWebFont(e.target.value); update({ fontFamily: e.target.value }); }}>{FONT_CATALOGUE.map(f => <option key={f.family}>{f.family}</option>)}</select></Field>
@@ -289,7 +322,7 @@ export function Inspector({ mode, onMode }: { mode: string; onMode: (s: string) 
         <Field label="External hyperlink"><input type="url" placeholder="https://example.com" value={el.hyperlink ?? ""} onChange={event => update({ hyperlink: event.target.value || undefined })} /></Field>
         <p className="text-[10px] text-muted-foreground">Actions activate when this object is clicked during a presentation. Slide actions take priority over external links.</p>
       </section>}
-      {el?.type === "image" && <section className="inspector-section"><h3>Image</h3><Field label="Fit"><select value={el.fit} onChange={e => update({ fit: e.target.value })}>{["cover", "contain", "fill"].map(v => <option key={v}>{v}</option>)}</select></Field>{(["brightness", "contrast", "saturation"] as const).map(k => <Field key={k} label={k}><input type="range" aria-label={k} min={-100} max={100} value={el.adjust[k]} onChange={e => update({ adjust: { ...el.adjust, [k]: Number(e.target.value) } })} /></Field>)}</section>}
+      {el?.type === "image" && <section className="inspector-section"><h3>Image</h3><Field label="Fit"><select value={el.fit} onChange={e => update({ fit: e.target.value })}>{["cover", "contain", "fill"].map(v => <option key={v}>{v}</option>)}</select></Field></section>}
       {el?.type === "chart" && <section className="inspector-section">
         <h3>Chart designer</h3>
         <Field label="Chart title"><input value={el.title} onChange={event => update({ title: event.target.value })} /></Field>
