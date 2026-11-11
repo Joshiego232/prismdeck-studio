@@ -6,7 +6,7 @@ import { FONT_CATALOGUE, loadWebFont } from "@/lib/prism/fonts";
 import { TRANSITIONS, ANIMATIONS, EASINGS } from "@/lib/prism/effects";
 import { makeAnimation } from "@/lib/prism/factory";
 import { normalizeGradientColors } from "@/lib/prism/gradients";
-import type { Animation, Background, GradientType, Slide, SlideElement } from "@/lib/prism/types";
+import type { Animation, Background, Deck, GradientType, Slide, SlideElement } from "@/lib/prism/types";
 import { parseChartData, serializeChartData } from "@/lib/prism/charts";
 import { PhotoEffectsStudio } from "./PhotoEffectsStudio";
 import { DEFAULT_ADJUST, type VisualAdjustments } from "@/lib/prism/types";
@@ -262,7 +262,7 @@ export function Inspector({ mode, onMode }: { mode: string; onMode: (s: string) 
       {selectedVisualElements.length > 0 && <section className="inspector-section">
         <h3>Photo & visual effects</h3>
         <p className="text-[10px] text-muted-foreground">Professional tonal, colour, detail and glow controls for images, shapes, text, charts and video.</p>
-        <PhotoEffectsStudio elements={selectedVisualElements} onAdjust={updateVisualAdjustments} onEffectPatch={updatePhotoEffects} onReset={resetPhotoEffects} />
+        <PhotoEffectsStudio elements={selectedVisualElements} slide={slide} deck={st.deck as Deck} onAdjust={updateVisualAdjustments} onEffectPatch={updatePhotoEffects} onReset={resetPhotoEffects} />
       </section>}
 
       {el?.type === "text" && <section className="inspector-section">
