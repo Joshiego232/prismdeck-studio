@@ -6,13 +6,13 @@ import type { ShapeEl, ShapeKind } from "@/lib/prism/types";
 import { ChevronDown, Search, Sparkles, X } from "lucide-react";
 
 type Category = "Nature" | "Space" | "Buildings" | "Landscapes" | "Objects";
-type Part = { shape: ShapeKind; x: number; y: number; w: number; h: number; fill: string; stroke?: string; strokeWidth?: number; rotation?: number; radius?: number; gradient?: string[]; name?: string };
+type Part = { shape: ShapeKind; x: number; y: number; w: number; h: number; fill: string; stroke?: string; strokeWidth?: number; rotation?: number; radius?: number; gradient?: string[]; depth?: boolean; name?: string };
 type Preset = { id: string; name: string; category: Category; description: string; parts: Part[] };
 const q = (shape: ShapeKind, x: number, y: number, w: number, h: number, fill: string, extra: Partial<Part> = {}): Part => ({ shape, x, y, w, h, fill, ...extra });
 
 const PRESETS: Preset[] = [
   { id: "pine-tree", name: "Evergreen tree", category: "Nature", description: "Layered conifer with trunk, tiered foliage and highlights.", parts: [
-    q("rect",365,420,70,150,"#8b542e"), q("triangle",205,250,390,300,"#176b45"), q("triangle",245,155,310,280,"#218653"), q("triangle",285,65,230,250,"#2eaa68"),
+    q("rect",365,420,70,150,"#8b542e"), q("triangle",205,250,390,300,"#176b45",{gradient:["#38b96b","#0d573c"],depth:true}), q("triangle",245,155,310,280,"#218653",{gradient:["#48c982","#146642"]}), q("triangle",285,65,230,250,"#2eaa68",{gradient:["#67dc91","#218653"]}),
     q("triangle",330,80,130,170,"#48c982"), q("star",374,30,52,52,"#ffd76a"), q("ellipse",315,500,24,13,"#a7e6a5"), q("ellipse",445,390,22,12,"#a7e6a5"),
   ]},
   { id: "oak-tree", name: "Oak tree", category: "Nature", description: "Rounded canopy built from overlapping foliage shapes.", parts: [
@@ -31,16 +31,16 @@ const PRESETS: Preset[] = [
     q("ellipse",130,300,540,245,"#176b43"), q("ellipse",210,210,250,245,"#238c50"), q("ellipse",365,185,250,250,"#2da65d"), q("ellipse",270,140,240,240,"#38b96b"), q("ellipse",185,335,65,55,"#69d986"), q("ellipse",500,290,60,55,"#69d986"), q("ellipse",365,270,24,24,"#f15c78"), q("ellipse",430,340,24,24,"#f15c78"), q("ellipse",290,365,22,22,"#f15c78"),
   ]},
   { id: "earth", name: "Planet Earth", category: "Space", description: "Blue planet with layered continents, atmosphere and clouds.", parts: [
-    q("ellipse",125,65,550,470,"#287bd8",{stroke:"#8bdcff",strokeWidth:12}), q("ellipse",235,145,165,105,"#42b66c",{rotation:-25}), q("ellipse",430,265,150,120,"#23975b",{rotation:22}), q("ellipse",330,360,110,75,"#4ac878"), q("ellipse",220,95,90,38,"#dff7ff",{rotation:-20}), q("ellipse",510,150,115,42,"#dff7ff",{rotation:20}), q("ellipse",160,330,100,35,"#dff7ff",{rotation:12}),
+    q("ellipse",125,65,550,470,"#287bd8",{stroke:"#8bdcff",strokeWidth:12,gradient:["#6ed4ff","#1250b6"],depth:true}), q("ellipse",235,145,165,105,"#42b66c",{rotation:-25}), q("ellipse",430,265,150,120,"#23975b",{rotation:22}), q("ellipse",330,360,110,75,"#4ac878"), q("ellipse",220,95,90,38,"#dff7ff",{rotation:-20}), q("ellipse",510,150,115,42,"#dff7ff",{rotation:20}), q("ellipse",160,330,100,35,"#dff7ff",{rotation:12}),
   ]},
   { id: "saturn", name: "Saturn", category: "Space", description: "Golden gas giant with a tilted multicolour ring system.", parts: [
-    q("ellipse",80,210,640,190,"#d9a45d",{rotation:-14}), q("ellipse",115,225,570,150,"#f0c77d",{rotation:-14}), q("ellipse",220,95,360,360,"#d99b4e",{stroke:"#ffe0a1",strokeWidth:10}), q("ellipse",265,145,270,270,"#f1bd70"), q("ellipse",280,185,240,34,"#c47d45",{rotation:10}), q("ellipse",295,275,220,28,"#f7d49a",{rotation:-8}), q("ellipse",310,335,180,24,"#bd7844",{rotation:8}),
+    q("ellipse",80,210,640,190,"#d9a45d",{rotation:-14}), q("ellipse",115,225,570,150,"#f0c77d",{rotation:-14}), q("ellipse",220,95,360,360,"#d99b4e",{stroke:"#ffe0a1",strokeWidth:10,gradient:["#ffe2a0","#b56a36"],depth:true}), q("ellipse",265,145,270,270,"#f1bd70"), q("ellipse",280,185,240,34,"#c47d45",{rotation:10}), q("ellipse",295,275,220,28,"#f7d49a",{rotation:-8}), q("ellipse",310,335,180,24,"#bd7844",{rotation:8}),
   ]},
   { id: "mars", name: "Mars", category: "Space", description: "Rust-red planet with crater details and atmospheric glow.", parts: [
-    q("ellipse",170,75,460,460,"#c85b3d",{stroke:"#f29a69",strokeWidth:12}), q("ellipse",260,160,105,65,"#9f402f",{rotation:-20}), q("ellipse",445,260,90,75,"#a84732"), q("ellipse",300,365,70,52,"#e17a4f"), q("ellipse",390,120,125,35,"#f18b62",{rotation:18}), q("ellipse",225,275,50,35,"#f18b62"),
+    q("ellipse",170,75,460,460,"#c85b3d",{stroke:"#f29a69",strokeWidth:12,gradient:["#f08b62","#8e302c"],depth:true}), q("ellipse",260,160,105,65,"#9f402f",{rotation:-20}), q("ellipse",445,260,90,75,"#a84732"), q("ellipse",300,365,70,52,"#e17a4f"), q("ellipse",390,120,125,35,"#f18b62",{rotation:18}), q("ellipse",225,275,50,35,"#f18b62"),
   ]},
   { id: "solar-system", name: "Solar system", category: "Space", description: "Sun and orbiting planets in a compact educational layout.", parts: [
-    q("ellipse",45,205,190,190,"#ffbd3f",{stroke:"#ffe59a",strokeWidth:10}), q("ellipse",245,110,310,310,"transparent",{stroke:"#65758f",strokeWidth:5}), q("ellipse",280,150,230,230,"transparent",{stroke:"#65758f",strokeWidth:4}), q("ellipse",315,185,160,160,"transparent",{stroke:"#65758f",strokeWidth:3}), q("ellipse",350,220,90,90,"transparent",{stroke:"#65758f",strokeWidth:3}), q("ellipse",275,265,48,48,"#a9b5c7"), q("ellipse",465,155,75,75,"#4f9fe8"), q("ellipse",505,340,90,90,"#d98c54"), q("ellipse",350,80,35,35,"#d6dce6"), q("ellipse",595,235,55,55,"#dfb76b"),
+    q("ellipse",45,205,190,190,"#ffbd3f",{stroke:"#ffe59a",strokeWidth:10,gradient:["#fff08b","#f18a24"],depth:true}), q("ellipse",245,110,310,310,"transparent",{stroke:"#65758f",strokeWidth:5}), q("ellipse",280,150,230,230,"transparent",{stroke:"#65758f",strokeWidth:4}), q("ellipse",315,185,160,160,"transparent",{stroke:"#65758f",strokeWidth:3}), q("ellipse",350,220,90,90,"transparent",{stroke:"#65758f",strokeWidth:3}), q("ellipse",275,265,48,48,"#a9b5c7"), q("ellipse",465,155,75,75,"#4f9fe8"), q("ellipse",505,340,90,90,"#d98c54"), q("ellipse",350,80,35,35,"#d6dce6"), q("ellipse",595,235,55,55,"#dfb76b"),
   ]},
   { id: "star-cluster", name: "Star constellation", category: "Space", description: "Connected stars with luminous points and orbit accents.", parts: [
     q("line",135,410,520,12,"#7ca6e8",{rotation:-30,strokeWidth:5}), q("line",260,170,330,12,"#7ca6e8",{rotation:25,strokeWidth:5}), q("line",480,320,220,12,"#7ca6e8",{rotation:-22,strokeWidth:5}), q("star",95,335,95,95,"#ffe17a"), q("star",245,95,115,115,"#fff3b0"), q("star",485,185,95,95,"#8bd8ff"), q("star",600,325,75,75,"#ffd36b"), q("star",325,370,70,70,"#c6a5ff"), q("star",520,440,45,45,"#fff3b0"),
@@ -52,7 +52,7 @@ const PRESETS: Preset[] = [
     q("rect",185,260,430,300,"#f1c27b"), q("triangle",145,105,510,300,"#c94d45"), q("rect",360,390,100,170,"#75452f"), q("ellipse",435,460,12,12,"#f5d76e"), q("rect",230,325,100,105,"#75c9ed",{stroke:"#fff5d8",strokeWidth:10}), q("rect",470,325,100,105,"#75c9ed",{stroke:"#fff5d8",strokeWidth:10}), q("rect",275,475,42,85,"#a96b3e"), q("rect",510,475,42,85,"#a96b3e"), q("rect",150,555,510,18,"#5e9d4e"),
   ]},
   { id: "skyscraper", name: "Glass skyscraper", category: "Buildings", description: "Modern high-rise with glass panels, floors and rooftop detail.", parts: [
-    q("rect",245,80,300,490,"#315b83",{stroke:"#8ed5f2",strokeWidth:10}), q("triangle",245,30,300,110,"#274664"), q("rect",275,115,52,410,"#75c9e9"), q("rect",345,115,52,410,"#4d9fc8"), q("rect",415,115,52,410,"#8ed9ee"), q("rect",485,115,35,410,"#4d9fc8"), q("line",245,235,300,10,"#c8edff",{strokeWidth:8}), q("line",245,365,300,10,"#c8edff",{strokeWidth:8}), q("rect",220,560,350,18,"#61748b"),
+    q("rect",245,80,300,490,"#315b83",{stroke:"#8ed5f2",strokeWidth:10,gradient:["#5c9fc2","#203e68"],depth:true}), q("triangle",245,30,300,110,"#274664"), q("rect",275,115,52,410,"#75c9e9"), q("rect",345,115,52,410,"#4d9fc8"), q("rect",415,115,52,410,"#8ed9ee"), q("rect",485,115,35,410,"#4d9fc8"), q("line",245,235,300,10,"#c8edff",{strokeWidth:8}), q("line",245,365,300,10,"#c8edff",{strokeWidth:8}), q("rect",220,560,350,18,"#61748b"),
   ]},
   { id: "city-skyline", name: "City skyline", category: "Buildings", description: "Multi-building skyline with varied silhouettes and glowing windows.", parts: [
     q("rect",35,285,145,285,"#456b91"), q("rect",190,180,155,390,"#315579"), q("rect",360,245,130,325,"#527da5"), q("rect",505,110,145,460,"#294866"), q("triangle",505,35,145,120,"#3f6b91"), q("rect",75,330,28,35,"#ffd56b"), q("rect",125,330,28,35,"#ffd56b"), q("rect",225,235,32,38,"#8fe0f0"), q("rect",280,235,32,38,"#8fe0f0"), q("rect",225,315,32,38,"#ffd56b"), q("rect",390,300,28,35,"#ffd56b"), q("rect",445,300,28,35,"#8fe0f0"), q("rect",540,185,30,38,"#ffd56b"), q("rect",590,185,30,38,"#8fe0f0"), q("rect",540,270,30,38,"#8fe0f0"), q("rect",590,270,30,38,"#ffd56b"), q("rect",0,570,720,20,"#263f57"),
@@ -70,7 +70,7 @@ const PRESETS: Preset[] = [
     q("rect",385,260,30,315,"#dce8f1"), q("ellipse",360,235,80,80,"#8cb4d1"), q("triangle",385,45,30,230,"#f4f7fb",{rotation:0}), q("triangle",210,270,210,35,"#f4f7fb",{rotation:-20}), q("triangle",410,260,205,35,"#f4f7fb",{rotation:145}), q("ellipse",382,257,36,36,"#ffd36b"), q("rect",270,575,260,15,"#7193a8"),
   ]},
   { id: "rocket", name: "Launch rocket", category: "Objects", description: "Detailed rocket with porthole, fins, flame and highlights.", parts: [
-    q("roundRect",300,130,200,340,"#e8edf5",{radius:95,stroke:"#91a8c4",strokeWidth:8}), q("triangle",300,30,200,180,"#e85c58"), q("triangle",230,360,110,150,"#e85c58"), q("triangle",460,360,110,150,"#e85c58"), q("ellipse",355,235,90,90,"#4aa5d6",{stroke:"#d7f3ff",strokeWidth:12}), q("rect",380,360,40,65,"#b9c8d8"), q("triangle",335,455,130,145,"#ff9c39"), q("triangle",365,480,70,100,"#ffe16b"), q("line",330,190,90,8,"#ffffff",{strokeWidth:8}),
+    q("roundRect",300,130,200,340,"#e8edf5",{radius:95,stroke:"#91a8c4",strokeWidth:8,gradient:["#ffffff","#a9c1d8"],depth:true}), q("triangle",300,30,200,180,"#e85c58"), q("triangle",230,360,110,150,"#e85c58"), q("triangle",460,360,110,150,"#e85c58"), q("ellipse",355,235,90,90,"#4aa5d6",{stroke:"#d7f3ff",strokeWidth:12}), q("rect",380,360,40,65,"#b9c8d8"), q("triangle",335,455,130,145,"#ff9c39"), q("triangle",365,480,70,100,"#ffe16b"), q("line",330,190,90,8,"#ffffff",{strokeWidth:8}),
   ]},
 ];
 
@@ -92,6 +92,7 @@ export function createShapePresetElements(id: string, slideWidth: number, slideH
       fill: part.fill, fill2: part.gradient?.[part.gradient.length - 1] ?? part.fill,
       gradient: !!part.gradient, gradientColors: part.gradient ?? [part.fill, part.fill],
       gradientAngle: 135, gradientType: "linear",
+      shadow: part.depth ? { on: true, x: 0, y: 7 * scale, blur: 16 * scale, color: "rgba(0,0,0,0.22)" } : { on: false, x: 0, y: 0, blur: 0, color: "rgba(0,0,0,0)" },
       stroke: part.stroke ?? (part.shape === "line" || part.shape === "arrow" ? part.fill : "transparent"), strokeWidth: (part.strokeWidth ?? (part.shape === "line" || part.shape === "arrow" ? 8 : 0)) * scale,
       rotation: part.rotation ?? 0, radius: (part.radius ?? 0) * scale,
       groupId,
