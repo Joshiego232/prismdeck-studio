@@ -75,6 +75,7 @@ const PRESETS: Preset[] = [
 ];
 
 export const SHAPE_PRESET_CATEGORIES = ["All", "Nature", "Space", "Buildings", "Landscapes", "Objects"] as const;
+export const SHAPE_PRESET_IDS = PRESETS.map(preset => preset.id);
 export type ShapePresetCategory = typeof SHAPE_PRESET_CATEGORIES[number];
 export function createShapePresetElements(id: string, slideWidth: number, slideHeight: number): ShapeEl[] {
   const preset = PRESETS.find(item => item.id === id);
@@ -133,7 +134,7 @@ export function ShapePresetGallery({ onInsert }: { onInsert: (id: string) => voi
     return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", key); };
   }, [open]);
   const toggle = () => {
-    if (!open) { const rect = anchor.current?.getBoundingClientRect(); if (rect) setPosition({ top: Math.min(rect.bottom + 8, window.innerHeight - 620), left: Math.max(12, Math.min(rect.left, window.innerWidth - 690)) }); }
+    if (!open) { const rect = anchor.current?.getBoundingClientRect(); if (rect) setPosition({ top: Math.max(12, Math.min(rect.bottom + 8, window.innerHeight - 620)), left: Math.max(12, Math.min(rect.left, window.innerWidth - 690)) }); }
     setOpen(value => !value);
   };
   return <>
