@@ -421,7 +421,7 @@ export default function Studio({ slideIndex, step, print, presenterMode = false,
       document.documentElement.requestFullscreen?.().catch(() => {});
     }
   }, [index, go]);
-  const present = useCallback(() => startPresentation(false), [startPresentation]);
+  const present = useCallback(() => startPresentation(true), [startPresentation]);
 
   const patchTransition = (patch: Partial<typeof slide.transition>) => st.mutate(d => {
     const target = findSlide(d, slide.id);
@@ -495,6 +495,12 @@ export default function Studio({ slideIndex, step, print, presenterMode = false,
       const target = e.target as HTMLElement;
       if (["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName) || target.isContentEditable) return;
       const state = useDeck.getState(); const cmd = e.metaKey || e.ctrlKey;
+      if (e.key === "F5" && e.shiftKey) {
+        e.preventDefault();
+        if (presenterMode) document.documentElement.requestFullscreen?.().catch(() => {});
+        else startPresentation(false);
+        return;
+      }
       if (e.key === "F5") {
         e.preventDefault();
         if (presenterMode) document.documentElement.requestFullscreen?.().catch(() => {});
@@ -542,7 +548,7 @@ export default function Studio({ slideIndex, step, print, presenterMode = false,
       }
     };
     window.addEventListener("keydown", key); return () => window.removeEventListener("keydown", key);
-  }, [presenting, advance, present, exit, duplicateSlideAndNavigate]);
+  }, [presenting, advance, present, startPresentation, exit, duplicateSlideAndNavigate, presenterMode]);
   useEffect(() => {
     if (!presenting || slide.autoAdvance <= 0 || index >= st.deck.slides.length - 1) return;
     const timer = setTimeout(() => { setMorphFrom(slide); go(index + 1); }, slide.autoAdvance * 1000);
