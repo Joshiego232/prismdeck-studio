@@ -89,7 +89,7 @@ export function TransitionGallery({ slide, onApply, onPreview, onApplyAll, onPat
       <div className="transition-featured-strip" aria-label="Featured transitions">
         {featured.map(preset => <button type="button" key={preset.id}
           className={`transition-featured-tile ${slide.transition.type === preset.id ? "selected" : ""}`}
-          onClick={() => { onApply(preset.id); onPreview(); }} title={preset.description}
+          onClick={() => onApply(preset.id)} title={preset.description}
           aria-label={`Apply ${preset.label} transition`}>
           <TransitionGlyph effect={preset.id} animate />
           <span>{preset.label}</span>
