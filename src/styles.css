@@ -959,3 +959,59 @@
 @media (prefers-reduced-motion: reduce) {
   .photo-quick-look-grid button,.photo-studio-tabs button,.photo-editor-launchers button { transition:none; }
 }
+
+
+/* Photo & Effects Studio pop-out window and canvas-matched live preview */
+.photo-studio-popout-backdrop {
+  position:relative;
+  inset:auto;
+  display:flex;
+  align-items:stretch;
+  justify-content:stretch;
+  width:100%;
+  height:100vh;
+  min-height:100vh;
+  padding:18px;
+  box-sizing:border-box;
+  background:radial-gradient(ellipse at 50% 0%,rgba(30,65,101,.34),transparent 58%),#081222;
+  backdrop-filter:none;
+}
+.photo-studio-popout-window {
+  width:100%;
+  max-width:none;
+  height:calc(100vh - 36px);
+  max-height:none;
+  min-height:0;
+  border-radius:14px;
+}
+.photo-studio-popout-window .photo-studio-body { flex:1; min-height:0; }
+.photo-popup-error {
+  margin:8px 0 0;
+  padding:8px 10px;
+  color:#ffd5a4;
+  background:rgba(150,83,31,.16);
+  border:1px solid rgba(244,177,103,.28);
+  border-radius:7px;
+  font-size:10px;
+  line-height:1.45;
+}
+.photo-preview-stage { position:relative; min-height:250px; }
+.photo-live-slide-preview {
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  padding:9px;
+  box-sizing:border-box;
+}
+.photo-live-slide-preview .scaled-host { width:100%; height:100%; }
+.photo-live-slide-preview .slide-content {
+  overflow:hidden;
+  border:1px solid rgba(161,190,228,.22);
+  border-radius:6px;
+  box-shadow:0 12px 34px rgba(0,0,0,.35);
+}
+@media (max-width: 620px) {
+  .photo-preview-stage { min-height:150px; }
+  .photo-live-slide-preview { padding:5px; }
+}
