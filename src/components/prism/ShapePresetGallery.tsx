@@ -53,18 +53,32 @@ function makeTree(id: string, name: string, description: string, style: string,
     p.push(ell(185,80,350,225,dark), ell(215,75,290,190,leaf), ell(270,90,190,135,light));
     [[195,220,76,250,-6],[250,245,64,235,8],[315,230,60,270,-3],[378,235,65,265,5],[442,220,74,245,8],[510,215,65,220,-8],[225,190,48,205,-8],[470,185,48,205,8]].forEach(([x,y,w,h,r],i)=>p.push(ell(x,y,w,h,i%2?leaf:dark,r)));
     [220,275,330,390,445,500].forEach((x,i)=>p.push(ell(x,355+(i%2)*22,28,95,i%2?light:leaf,i%2?5:-5)));
-  } else if (style === "conifer" || style === "cedar") {
-    p.push(q("rect", 337, 330, 46, 240, bark, { gradient: ["#9e6b43","#5b3c2b"] }));
-    const tiers = style === "cedar" ? [[180,280,360,170],[205,220,310,160],[235,160,250,150],[265,105,190,140],[295,55,130,125]] : [[165,240,390,300],[205,180,310,275],[240,120,240,245],[275,70,170,205],[310,32,100,150]];
-    tiers.forEach(([x,y,w,h],i)=>{
-      p.push(q("triangle",x,y,w,h,dark,{gradient:[leaf,dark],depth:i===0}));
-      p.push(q("triangle",x+Math.round(w*.12),y+Math.round(h*.12),Math.round(w*.76),Math.round(h*.76),i%2?light:leaf,{gradient:[light,leaf]}));
-    });
-    [0,1,2,3,4].forEach(i=>{
-      const y=265-i*46, spread=150-i*24;
-      p.push(ln(360,y,360-spread,y-28,dark,12),ln(360,y,360+spread,y-28,leaf,12));
-      p.push(ell(360-spread-18,y-43,52,24,light,-18),ell(360+spread-30,y-42,52,24,leaf,18));
-    });
+  } else if (style === "conifer" || style === "cedar" || style === "spruce" || style === "fir") {
+    p.push(q("rect",337,330,46,240,bark,{gradient:["#9e6b43","#5b3c2b"]}));
+    if(style==="cedar"){
+      const shelves=[[160,290,400,112],[190,235,340,104],[220,180,280,96],[250,128,220,88],[285,82,150,78]];
+      shelves.forEach(([x,y,w,h],i)=>{
+        p.push(ell(x,y,w,h,dark,0,{depth:i===0}));
+        p.push(ell(x+24,y+12,w-48,h-30,i%2?leaf:light));
+        p.push(ell(x+56,y+22,w-112,h-38,leaf));
+      });
+      [0,1,2,3].forEach(i=>{const y=300-i*52,spread=170-i*30;p.push(ln(360,y,360-spread,y-22,dark,11),ln(360,y,360+spread,y-22,leaf,11));});
+    }else{
+      const tiers = style==="spruce"
+        ? [[205,225,310,285],[230,175,260,245],[255,125,210,205],[280,78,160,168],[305,38,110,130]]
+        : style==="fir"
+          ? [[145,250,430,310],[190,190,340,270],[225,135,270,235],[260,82,200,195],[295,38,130,155]]
+          : [[165,240,390,300],[205,180,310,275],[240,120,240,245],[275,70,170,205],[310,32,100,150]];
+      tiers.forEach(([x,y,w,h],i)=>{
+        p.push(q("triangle",x,y,w,h,dark,{gradient:[leaf,dark],depth:i===0}));
+        p.push(q("triangle",x+Math.round(w*.12),y+Math.round(h*.12),Math.round(w*.76),Math.round(h*.76),i%2?light:leaf,{gradient:[light,leaf]}));
+      });
+      [0,1,2,3,4].forEach(i=>{
+        const y=265-i*46,spread=(style==="spruce"?132:style==="fir"?168:150)-i*24;
+        p.push(ln(360,y,360-spread,y-28,dark,style==="spruce"?15:12),ln(360,y,360+spread,y-28,leaf,style==="spruce"?15:12));
+        if(style!=="spruce")p.push(ell(360-spread-18,y-43,52,24,light,-18),ell(360+spread-30,y-42,52,24,leaf,18));
+      });
+    }
   } else if (style === "column") {
     p.push(q("trapezoid", 337, 280, 46, 290, bark, { gradient: ["#d3d0ba","#6b5947"], depth: true }));
     p.push(ln(360,360,275,215,bark,14),ln(360,350,445,205,bark,14));
@@ -281,8 +295,8 @@ const PRESETS:Preset[]=[
   makeTree("pine-tree","Scots pine","Tall conical silhouette with distinct whorls of branches and needle tiers.","conifer",{leaf:"#276d4b",light:"#54a66d",dark:"#174b39",trunk:"#8b603d"}),
   makeTree("apple-tree","Apple tree","Rounded orchard crown with visible red apples, little leaves and stout limbs.","round",{leaf:"#32894c",light:"#7ac66a",dark:"#1c663b",trunk:"#98643c",fruit:"#d94343"}),
   makeTree("maple-tree","Sugar maple","Wide balanced crown with a branching framework and rich green foliage.","round",{leaf:"#347f4b",light:"#85c86e",dark:"#1d6039",trunk:"#865a3b"}),
-  makeTree("norway-spruce","Norway spruce","Dense narrow conical crown with descending branch tiers.","conifer",{leaf:"#175b49",light:"#3e9873",dark:"#0c3c36",trunk:"#73513a"}),
-  makeTree("silver-fir","Silver fir","Symmetrical evergreen with layered branches and silvery needle highlights.","conifer",{leaf:"#306c65",light:"#8abdb0",dark:"#1b4a4b",trunk:"#816047"}),
+  makeTree("norway-spruce","Norway spruce","Dense narrow conical crown with short, descending branches and compact needle tiers.","spruce",{leaf:"#175b49",light:"#3e9873",dark:"#0c3c36",trunk:"#73513a"}),
+  makeTree("silver-fir","Silver fir","Broad symmetrical evergreen with orderly horizontal boughs and silvery needle highlights.","fir",{leaf:"#306c65",light:"#8abdb0",dark:"#1b4a4b",trunk:"#816047"}),
   makeTree("italian-cypress","Italian cypress","Tall narrow columnar silhouette with tightly packed foliage.","narrow",{leaf:"#286a4b",light:"#5b9c6e",dark:"#174b38",trunk:"#76513a"}),
   makeTree("coast-redwood","Coast redwood","Towering straight trunk with a high slim crown and red-brown bark.","narrow",{leaf:"#28634b",light:"#659a68",dark:"#174736",trunk:"#a45f3d"}),
   makeTree("giant-sequoia","Giant sequoia","Broad redwood trunk, tapering crown and textured bark.","narrow",{leaf:"#316d4c",light:"#75a96d",dark:"#1a5039",trunk:"#9a5837"}),
