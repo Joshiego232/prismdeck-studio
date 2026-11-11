@@ -1,10 +1,10 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { Camera, ChevronRight, Contrast, Droplets, Gauge, RotateCcw, SlidersHorizontal, Sparkles, Sun, Thermometer, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { SlideElement, VisualAdjustments } from "@/lib/prism/types";
-import { resolveVisualAdjustments, buildVisualFilter, buildVisualBoxShadow } from "@/lib/prism/visualAdjustments";
-import { useResolvedSrc } from "@/lib/prism/assets";
+import type { Deck, Slide, SlideElement, VisualAdjustments } from "@/lib/prism/types";
+import { resolveVisualAdjustments } from "@/lib/prism/visualAdjustments";
+import { ScaledSlide } from "./ScaledSlide";
 
 type AdjustKey = keyof VisualAdjustments;
 type View = "quick" | "studio";
@@ -83,42 +83,115 @@ function Histogram() {
   </svg>;
 }
 
-function PreviewArtwork({ element, source, filter, shadow }: { element: SlideElement; source: string; filter?: string; shadow?: string }) {
-  const style: CSSProperties = { filter, boxShadow: shadow };
-  if (element.type === "image" && source) return <img className="photo-preview-image" src={source} alt={element.alt || "Selected image preview"} style={style}/>;
-  if (element.type === "video" && source) return <img className="photo-preview-image" src={source} alt={element.name + " preview"} style={style}/>;
-  return <svg className="photo-preview-art" viewBox="0 0 360 190" style={style} aria-label="Live adjustment preview">
-    <defs><linearGradient id="photo-preview-sky" x2="0" y2="1"><stop stopColor="#182c55"/><stop offset="1" stopColor="#7b9db0"/></linearGradient><linearGradient id="photo-preview-hill" x2="0" y2="1"><stop stopColor="#70bd9c"/><stop offset="1" stopColor="#1b594d"/></linearGradient></defs>
-    <rect width="360" height="190" fill="url(#photo-preview-sky)"/>
-    <circle cx="275" cy="47" r="25" fill="#f4d18a"/>
-    <path d="M0 145 74 66 120 122 187 40 285 145Z" fill="#526f93"/>
-    <path d="m153 79 34-39 40 60-26-12-13 12Z" fill="#e9eef0" opacity=".9"/>
-    <path d="M0 145 Q76 117 145 148 T290 140 T360 146 V190 H0Z" fill="url(#photo-preview-hill)"/>
-    <path d="M0 164 Q80 143 150 168 T300 159 T360 163" fill="none" stroke="#a6d4ba" strokeWidth="3" opacity=".65"/>
-    <path d="M40 152v-24m0 8-10-9m10 9 11-12m55 29v-34m0 14-13-14m13 14 14-16m170 12v-26m0 11-11-12m11 12 12-14" stroke="#163f37" strokeWidth="5" strokeLinecap="round"/>
-  </svg>;
-}
-
-export function PhotoEffectsStudio({ elements, onAdjust, onEffectPatch, onReset }: {
+export function PhotoEffectsStudio({ elements, slide, deck, onAdjust, onEffectPatch, onReset }: {
   elements: SlideElement[];
+  slide: Slide;
+  deck: Deck;
   onAdjust: (adjustments: VisualAdjustments) => void;
   onEffectPatch: (patch: Record<string, unknown>) => void;
   onReset: () => void;
 }) {
   const [view,setView]=useState<View|null>(null);
   const [tab,setTab]=useState<StudioTab>("Light");
+  const [popupWindow,setPopupWindow]=useState<Window|null>(null);
+  const [popupRoot,setPopupRoot]=useState<HTMLElement|null>(null);
+  const [popupError,setPopupError]=useState(false);
   const element=elements[0];
   const adjustments=element?resolveVisualAdjustments(element):null;
-  const previewSource=useResolvedSrc(element?.type==="image"?element.src:element?.type==="video"?element.poster:"");
+
+  // Render the actual selected slide objects in a tightly cropped miniature slide.
+  // ScaledSlide uses the same renderer and CSS filter pipeline as the main canvas.
+  const livePreview=useMemo(()=>{
+    const left=Math.min(...elements.map(item=>item.x));
+    const top=Math.min(...elements.map(item=>item.y));
+    const right=Math.max(...elements.map(item=>item.x+item.w));
+    const bottom=Math.max(...elements.map(item=>item.y+item.h));
+    const padding=Math.max(36,Math.round(Math.min(right-left,bottom-top)*.1));
+    const width=Math.max(300,right-left+padding*2);
+    const height=Math.max(210,bottom-top+padding*2);
+    const previewElements=elements.map(item=>({...item,x:item.x-left+padding,y:item.y-top+padding}));
+    const previewSlide:Slide={
+      ...slide,
+      masterId:undefined,
+      background:{...slide.background,type:"solid",color:"#0b1426",color2:"#0b1426",image:""},
+      elements:previewElements,
+      animations:[],
+    };
+    const previewDeck:Deck={...deck,width,height,masters:[],slides:[previewSlide]};
+    return {slide:previewSlide,deck:previewDeck};
+  },[deck,elements,slide]);
+
+  const openStudio=(nextView:View)=>{
+    if(popupWindow&&!popupWindow.closed){
+      setView(nextView);
+      popupWindow.focus();
+      return;
+    }
+    // Open synchronously inside the button gesture so the browser treats this as a user-requested window.
+    const opened=window.open("","PrismDeckPhotoEffectsStudio","popup=yes,width=1480,height=980,resizable=yes,scrollbars=yes");
+    if(!opened){setPopupError(true);return;}
+    const popupDoc=opened.document;
+    popupDoc.open();
+    popupDoc.write("<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>PrismDeck Photo & Effects Studio</title></head><body><div id=\"prism-photo-studio-root\"></div></body></html>");
+    popupDoc.close();
+    popupDoc.documentElement.className=document.documentElement.className;
+    popupDoc.documentElement.lang=document.documentElement.lang||"en";
+    popupDoc.body.className=document.body.className;
+    popupDoc.body.style.margin="0";
+    popupDoc.body.style.minWidth="320px";
+    popupDoc.body.style.minHeight="100vh";
+    popupDoc.body.style.background="#081222";
+    const base=popupDoc.createElement("base");
+    base.href=document.baseURI;
+    popupDoc.head.prepend(base);
+    document.head.querySelectorAll('link[rel="stylesheet"], style').forEach(node=>{
+      popupDoc.head.appendChild(popupDoc.importNode(node,true));
+    });
+    const popupStyles=popupDoc.createElement("style");
+    popupStyles.textContent="html,body,#prism-photo-studio-root{width:100%;min-height:100%;margin:0}#prism-photo-studio-root{min-height:100vh}";
+    popupDoc.head.appendChild(popupStyles);
+    const root=popupDoc.getElementById("prism-photo-studio-root");
+    if(!root){opened.close();setPopupError(true);return;}
+    setPopupError(false);
+    setPopupWindow(opened);
+    setPopupRoot(root);
+    setView(nextView);
+    opened.focus();
+  };
+  const closeStudio=()=>{
+    const active=popupWindow;
+    setView(null);
+    setPopupRoot(null);
+    setPopupWindow(null);
+    if(active&&!active.closed)active.close();
+  };
+
   useEffect(()=>{
-    if(!view)return;
-    const close=(event:KeyboardEvent)=>{if(event.key==="Escape")setView(null);};
-    document.addEventListener("keydown",close);
-    return()=>document.removeEventListener("keydown",close);
-  },[view]);
+    if(!popupWindow)return;
+    const handleWindowClose=()=>{
+      setPopupRoot(null);
+      setPopupWindow(null);
+      setView(null);
+    };
+    const handleKeyDown=(event:KeyboardEvent)=>{
+      if(event.key==="Escape"){
+        event.preventDefault();
+        handleWindowClose();
+        if(!popupWindow.closed)popupWindow.close();
+      }
+    };
+    popupWindow.addEventListener("pagehide",handleWindowClose);
+    popupWindow.addEventListener("beforeunload",handleWindowClose);
+    popupWindow.document.addEventListener("keydown",handleKeyDown);
+    return()=>{
+      popupWindow.removeEventListener("pagehide",handleWindowClose);
+      popupWindow.removeEventListener("beforeunload",handleWindowClose);
+      popupWindow.document.removeEventListener("keydown",handleKeyDown);
+      if(!popupWindow.closed)popupWindow.close();
+    };
+  },[popupWindow]);
+
   if(!element||!adjustments)return null;
-  const visualFilter=buildVisualFilter({...element,visualAdjustments:adjustments});
-  const visualShadow=buildVisualBoxShadow({...element,visualAdjustments:adjustments});
   const update=(key:AdjustKey,value:number)=>onAdjust({...adjustments,[key]:value});
   const applyLook=(values:Partial<VisualAdjustments>)=>onAdjust({...adjustments,...values});
   const shadowAmount=element.shadow.on?Math.min(100,Math.round(element.shadow.blur*1.7)):0;
@@ -126,20 +199,21 @@ export function PhotoEffectsStudio({ elements, onAdjust, onEffectPatch, onReset 
   const tabs:StudioTab[]=["Light","Color","Detail","Effects"];
   return <>
     <div className="photo-editor-launchers">
-      <Button type="button" variant="outline" className="photo-launch-quick" onClick={()=>setView("quick")}><Camera size={15}/> Quick Edit</Button>
-      <Button type="button" variant="outline" className="photo-launch-full" onClick={()=>setView("studio")}><SlidersHorizontal size={15}/> Photo & Effects Studio <ChevronRight size={14}/></Button>
+      <Button type="button" variant="outline" className="photo-launch-quick" onClick={()=>openStudio("quick")}><Camera size={15}/> Quick Edit</Button>
+      <Button type="button" variant="outline" className="photo-launch-full" onClick={()=>openStudio("studio")}><SlidersHorizontal size={15}/> Photo & Effects Studio <ChevronRight size={14}/></Button>
     </div>
-    {view&&typeof document!=="undefined"&&createPortal(
-      <div className="photo-studio-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)setView(null);}}>
-        <section className={"photo-studio-window "+(view==="quick"?"photo-studio-quick":"")} role="dialog" aria-modal="true" aria-label={view==="quick"?"Quick photo editor":"Photo and effects studio"}>
+    {popupError&&<p className="photo-popup-error" role="alert">Your browser blocked the editor window. Allow pop-ups for this PrismDeck tab, then open the studio again.</p>}
+    {view&&popupRoot&&createPortal(
+      <div className="photo-studio-backdrop photo-studio-popout-backdrop" role="presentation">
+        <section className={"photo-studio-window photo-studio-popout-window "+(view==="quick"?"photo-studio-quick":"")} role="dialog" aria-modal="true" aria-label={view==="quick"?"Quick photo editor":"Photo and effects studio"}>
           <header className="photo-studio-header">
             <div className="photo-studio-brand"><div className="photo-studio-mark"><SlidersHorizontal size={17}/></div><div><strong>{view==="quick"?"Quick Edit":"Photo & Effects Studio"}</strong><small>NON-DESTRUCTIVE VISUAL ADJUSTMENTS · {elements.length} SELECTED</small></div></div>
-            <div className="photo-studio-header-actions"><Button type="button" variant="ghost" size="sm" onClick={()=>setView(view==="quick"?"studio":"quick")}>{view==="quick"?"Open full studio":"Quick edit"}</Button><Button type="button" variant="ghost" size="icon" aria-label="Close editor" onClick={()=>setView(null)}><X size={18}/></Button></div>
+            <div className="photo-studio-header-actions"><Button type="button" variant="ghost" size="sm" onClick={()=>setView(view==="quick"?"studio":"quick")}>{view==="quick"?"Open full studio":"Quick edit"}</Button><Button type="button" variant="ghost" size="icon" aria-label="Close editor window" onClick={closeStudio}><X size={18}/></Button></div>
           </header>
           <div className="photo-studio-body">
             <aside className="photo-studio-preview-column">
-              <div className="photo-preview-topline"><span><i/> LIVE LOOK PREVIEW</span><small>{element.name}</small></div>
-              <div className="photo-preview-stage"><PreviewArtwork element={element} source={previewSource} filter={visualFilter} shadow={visualShadow}/></div>
+              <div className="photo-preview-topline"><span><i/> LIVE OBJECT PREVIEW</span><small>{element.name}</small></div>
+              <div className="photo-preview-stage"><div className="photo-live-slide-preview"><ScaledSlide slide={livePreview.slide} deck={livePreview.deck} editable={false}/></div></div>
               <div className="photo-histogram-label"><span>TONAL DISTRIBUTION</span><span>SHADOWS <b>·</b> HIGHLIGHTS</span></div>
               <Histogram/>
               <div className="photo-preview-meta"><span>{element.type.toUpperCase()} OBJECT</span><span>{elements.length>1?"MULTI-SELECTION":"LIVE CANVAS SYNC"}</span></div>
@@ -168,7 +242,7 @@ export function PhotoEffectsStudio({ elements, onAdjust, onEffectPatch, onReset 
                   <div className="photo-effects-tip">Glow, shadow, blur and tonal controls are stored with the selected object and remain editable later.</div>
                 </div>}
               </>}
-              <footer className="photo-studio-footer"><span>ADJUSTMENTS APPLY TO ALL {elements.length} SELECTED OBJECT{elements.length===1?"":"S"}</span><div><Button type="button" variant="ghost" size="sm" onClick={onReset}><RotateCcw size={14}/> Reset all</Button><Button type="button" size="sm" onClick={()=>setView(null)}>Done</Button></div></footer>
+              <footer className="photo-studio-footer"><span>ADJUSTMENTS APPLY TO ALL {elements.length} SELECTED OBJECT{elements.length===1?"":"S"}</span><div><Button type="button" variant="ghost" size="sm" onClick={onReset}><RotateCcw size={14}/> Reset all</Button><Button type="button" size="sm" onClick={closeStudio}>Done</Button></div></footer>
             </main>
           </div>
         </section>
