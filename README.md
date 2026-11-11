@@ -23,11 +23,20 @@ bun run build
 
 GitHub Actions runs the same checks on pushes to `main` and feature branches, and on pull requests into `main`.
 
+## Ribbon and transition gallery
+
+- The redesigned ribbon uses icon-led tabs, grouped tools, responsive layouts and PrismDeck's own cyan/indigo visual identity.
+- The Transitions tab includes animated mini-previews and a full gallery grouped into Subtle, Dynamic and Dramatic effects.
+- Hover or focus a transition tile to see its miniature animation and larger preview; choose a tile to apply it to the selected slide.
+- Transition timing includes duration and direction, plus Preview and Apply to All actions.
+- The Present menu offers **From Beginning** and **From Current Slide**. Keyboard shortcuts follow the same convention: F5 and Shift+F5 respectively.
+
 ## Keyboard shortcuts
 
 | Shortcut | Action |
 |---|---|
-| `F5` | Open the separate presenter window |
+| `F5` | Present from the beginning |
+| `Shift + F5` | Present from the current slide |
 | `Shift + G` | Group selected objects |
 | `Ctrl/Cmd + Shift + G` | Ungroup selected objects |
 | `Shift + K` | Add or edit a hyperlink on selected objects |
