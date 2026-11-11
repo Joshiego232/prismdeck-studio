@@ -2,6 +2,8 @@
 export const DECK_SCHEMA_VERSION = 1;
 
 export type ElementType = "text" | "shape" | "image" | "video" | "audio" | "chart";
+export type MasterLayout = "title" | "title-content" | "section" | "minimal" | "two-column";
+export interface SlideAction { kind: "next" | "previous" | "first" | "last" | "go-to"; targetSlideId?: string }
 export type ShapeKind =
   | "rect" | "roundRect" | "ellipse" | "triangle" | "diamond" | "star"
   | "chevron" | "callout" | "line" | "arrow" | "pentagon" | "hexagon" | "octagon"
@@ -32,6 +34,10 @@ interface BaseEl extends Effects {
   hidden?: boolean;
   groupId?: string;
   hyperlink?: string;
+  /** Last layout bounds, retained as optional alignment guides when enabled. */
+  snapMemory?: { x: number; y: number; w: number; h: number };
+  /** In-presentation navigation action attached to a clickable object. */
+  slideAction?: SlideAction;
 }
 
 export interface TextProps {
@@ -118,11 +124,15 @@ export interface AudioEl extends BaseEl {
 
 export interface ChartEl extends BaseEl {
   type: "chart";
-  chartType: "bar" | "line" | "pie";
+  chartType: "bar" | "column" | "horizontal" | "line" | "area" | "pie" | "donut";
   data: { label: string; value: number }[];
   color: string;
   textColor: string;
   title: string;
+  showLegend?: boolean;
+  showValues?: boolean;
+  axisLabel?: string;
+  dataSourceLabel?: string;
 }
 
 export type SlideElement = TextEl | ShapeEl | ImageEl | VideoEl | AudioEl | ChartEl;
@@ -138,6 +148,9 @@ export interface Animation {
   easing: string;
   direction: "left" | "right" | "up" | "down";
   trigger: "onClick" | "withPrevious" | "afterPrevious";
+  repeatCount?: number;
+  alternate?: boolean;
+  motionPath?: Array<{ x: number; y: number }>;
 }
 
 export interface Transition {
@@ -162,6 +175,7 @@ export interface Slide {
   id: string;
   name: string;
   section?: string; // section divider label shown above this slide
+  masterId?: string;
   hidden?: boolean;
   background: Background;
   transition: Transition;
@@ -171,12 +185,27 @@ export interface Slide {
   animations: Animation[];
 }
 
+export interface SlideMaster {
+  id: string;
+  name: string;
+  layout: MasterLayout;
+  backgroundColor: string;
+  accentColor: string;
+  titleColor: string;
+  footerText: string;
+  showAccentRule: boolean;
+  showSlideNumber: boolean;
+  showTitlePlaceholder?: boolean;
+}
+
 export interface Deck {
   schema: number;
   id: string;
   name: string;
   width: number;
   height: number;
+  themeId?: string;
+  masters?: SlideMaster[];
   slides: Slide[];
   createdAt: number;
   updatedAt: number;

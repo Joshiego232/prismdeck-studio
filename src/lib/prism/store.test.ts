@@ -37,6 +37,20 @@ describe("PrismDeck editor store", () => {
     expect(useDeck.getState().selectedElementIds).toEqual([first.id, second.id]);
   });
 
+  it("supports additive and toggle multi-selection for Layers", () => {
+    const first = makeText({ name: "Layer one" });
+    const second = makeText({ name: "Layer two" });
+    const third = makeText({ name: "Layer three" });
+    useDeck.getState().mutate(deck => { deck.slides[0]!.elements.push(first, second, third); });
+    useDeck.getState().selectElements([first.id]);
+    useDeck.getState().selectElements([second.id], "add");
+    expect(useDeck.getState().selectedElementIds).toEqual([first.id, second.id]);
+    useDeck.getState().selectElements([first.id], "toggle");
+    expect(useDeck.getState().selectedElementIds).toEqual([second.id]);
+    useDeck.getState().selectElements([third.id], "toggle");
+    expect(useDeck.getState().selectedElementIds).toEqual([second.id, third.id]);
+  });
+
   it("duplicates a selected group with a new shared group id", () => {
     const state = useDeck.getState();
     const first = makeText({ name: "Grouped A" });
@@ -55,6 +69,20 @@ describe("PrismDeck editor store", () => {
     expect(duplicates[0]?.groupId).toBeTruthy();
     expect(duplicates[0]?.groupId).toBe(duplicates[1]?.groupId);
     expect(duplicates[0]?.groupId).not.toBe(originalGroupId);
+  });
+
+  it("reorders a whole grouped stack together in Layers", () => {
+    const first = makeText({ name: "Group A" });
+    const second = makeText({ name: "Group B" });
+    const third = makeText({ name: "Independent target" });
+    useDeck.getState().mutate(deck => { deck.slides[0]!.elements.push(third, first, second); });
+    useDeck.getState().groupElements([first.id, second.id]);
+    useDeck.getState().reorderElements([first.id, second.id], third.id);
+    const reordered = useDeck.getState().deck.slides[0]!.elements;
+    const order = reordered.map(element => element.id);
+    expect(order).toEqual([first.id, second.id, third.id]);
+    expect(reordered[0]?.groupId).toBe(reordered[1]?.groupId);
+    expect(reordered[0]?.groupId).toBeTruthy();
   });
 
   it("duplicates a slide with fresh slide, object, animation, and group IDs", () => {

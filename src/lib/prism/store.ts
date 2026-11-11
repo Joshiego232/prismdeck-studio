@@ -9,6 +9,7 @@ import { loadProject, saveProject } from "./projects";
 const HISTORY_LIMIT = 120;
 
 export type SaveState = "saved" | "saving" | "unsaved" | "error";
+export type ElementSelectionMode = "single" | "add" | "toggle";
 
 interface MutateOpts { history?: boolean; coalesce?: string | undefined }
 
@@ -32,7 +33,7 @@ export interface DeckState {
   loadDeck: (d: Deck) => void;
 
   selectSlide: (id: string, mode?: "single" | "toggle" | "range") => void;
-  selectElements: (ids: string[]) => void;
+  selectElements: (ids: string[], mode?: ElementSelectionMode) => void;
   setEditingText: (id: string | null) => void;
 
   addSlide: (after?: string, s?: Slide) => string;
@@ -47,6 +48,7 @@ export interface DeckState {
   copySelected: () => void;
   paste: () => void;
   reorderElement: (id: string, where: "front" | "back" | "forward" | "backward" | number) => void;
+  reorderElements: (ids: string[], beforeId: string) => void;
   groupElements: (ids?: string[]) => void;
   ungroupElements: (ids?: string[]) => void;
 }
@@ -127,7 +129,23 @@ export const useDeck = create<DeckState>()((set, get) => {
       }
       return { currentSlideId: id, slideSelectionAnchorId: id, selectedSlideIds: [id], selectedElementIds: [], editingTextId: null };
     }),
-    selectElements: (ids) => set((st) => ({ selectedElementIds: ids, editingTextId: ids.includes(st.editingTextId ?? "") ? st.editingTextId : null })),
+    selectElements: (ids, mode = "single") => set((st) => {
+      const uniqueIds = [...new Set(ids)];
+      if (mode === "add") {
+        const selectedElementIds = [...new Set([...st.selectedElementIds, ...uniqueIds])];
+        return { selectedElementIds, editingTextId: selectedElementIds.includes(st.editingTextId ?? "") ? st.editingTextId : null };
+      }
+      if (mode === "toggle") {
+        const selected = new Set(st.selectedElementIds);
+        for (const id of uniqueIds) {
+          if (selected.has(id)) selected.delete(id);
+          else selected.add(id);
+        }
+        const selectedElementIds = [...selected];
+        return { selectedElementIds, editingTextId: selectedElementIds.includes(st.editingTextId ?? "") ? st.editingTextId : null };
+      }
+      return { selectedElementIds: uniqueIds, editingTextId: uniqueIds.includes(st.editingTextId ?? "") ? st.editingTextId : null };
+    }),
     setEditingText: (id) => set({ editingTextId: id }),
 
     addSlide: (after, s) => {
@@ -245,6 +263,19 @@ export const useDeck = create<DeckState>()((set, get) => {
       });
       set({ selectedElementIds: members });
     },
+    reorderElements: (ids, beforeId) => get().mutate(d => {
+      const s = findSlide(d, get().currentSlideId);
+      if (!s) return;
+      const movingIds = new Set(ids);
+      const targetIndex = s.elements.findIndex(item => item.id === beforeId);
+      if (targetIndex < 0 || movingIds.has(beforeId)) return;
+      const moving = s.elements.filter(item => movingIds.has(item.id));
+      if (!moving.length) return;
+      s.elements = s.elements.filter(item => !movingIds.has(item.id));
+      const insertAt = s.elements.findIndex(item => item.id === beforeId);
+      if (insertAt < 0) return;
+      s.elements.splice(insertAt, 0, ...moving);
+    }),
     reorderElement: (id, where) => get().mutate((d) => {
       const s = findSlide(d, get().currentSlideId); if (!s) return;
       const i = s.elements.findIndex((e) => e.id === id); if (i < 0) return;
@@ -283,8 +314,16 @@ export function startAutosave(getDelay: () => number, enabled: () => boolean) {
     useDeck.setState({ saveState: "saving" });
     clearTimeout(t); t = setTimeout(flush, getDelay());
   });
-  const onUnload = () => { if (useDeck.getState().saveState !== "saved") flush(); };
-  window.addEventListener("beforeunload", onUnload);
-  return () => { unsub(); clearTimeout(t); window.removeEventListener("beforeunload", onUnload); };
+  const flushWhenLeaving = () => { if (useDeck.getState().saveState !== "saved") flush(); };
+  const onVisibilityChange = () => { if (document.visibilityState === "hidden") flushWhenLeaving(); };
+  window.addEventListener("beforeunload", flushWhenLeaving);
+  window.addEventListener("pagehide", flushWhenLeaving);
+  document.addEventListener("visibilitychange", onVisibilityChange);
+  return () => {
+    unsub(); clearTimeout(t);
+    window.removeEventListener("beforeunload", flushWhenLeaving);
+    window.removeEventListener("pagehide", flushWhenLeaving);
+    document.removeEventListener("visibilitychange", onVisibilityChange);
+  };
 }
 export const saveNow = () => { saveProject(useDeck.getState().deck); useDeck.setState({ saveState: "saved" }); };

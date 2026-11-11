@@ -1,6 +1,10 @@
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
-import type { Deck, Slide, SlideElement, TextEl } from "@/lib/prism/types";
+import { memo, useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import type { Deck, Slide, SlideElement, ShapeEl, TextEl, SlideAction } from "@/lib/prism/types";
+import { ChartRenderer } from "./ChartRenderer";
+import { getSharedGroupGradient } from "@/lib/prism/groupStyles";
 import { gradientCss } from "@/lib/prism/gradients";
+import { isFeatureEnabled } from "@/lib/prism/featureFlags";
+import { collectSnapTargets, findAxisSnap } from "@/lib/prism/snapGuides";
 import { useDeck } from "@/lib/prism/store";
 import { fontStack, loadWebFont } from "@/lib/prism/fonts";
 import { useResolvedSrc } from "@/lib/prism/assets";
@@ -13,10 +17,7 @@ function ElementContent({ el, presenting, fillStyle }: { el: SlideElement; prese
   if (el.type === "image") return <img draggable={false} src={src} alt={el.alt} className="h-full w-full" style={{ objectFit: el.fit, borderRadius: el.radius, filter: `brightness(${1 + el.adjust.brightness / 100}) contrast(${1 + el.adjust.contrast / 100}) saturate(${1 + el.adjust.saturation / 100})`, transform: `scale(${el.flipX ? -1 : 1},${el.flipY ? -1 : 1})` }} />;
   if (el.type === "video") return <video src={src} poster={el.poster} controls={presenting} autoPlay={presenting && el.autoplay} muted={el.muted} loop={el.loop} className="h-full w-full" style={{ objectFit: el.fit }} />;
   if (el.type === "audio") return <audio src={src} controls autoPlay={presenting && el.autoplay} loop={el.loop} />;
-  if (el.type === "chart") {
-    const max = Math.max(1, ...el.data.map(d => d.value));
-    return <div style={{ color: el.textColor }} className="flex h-full flex-col gap-8 p-8"><h3 className="slide-body">{el.title}</h3><div className="flex flex-1 items-end gap-8 border-b border-current">{el.data.map((d, i) => <div key={i} className="flex h-full flex-1 flex-col justify-end gap-4 text-center"><span className="slide-body">{d.value}</span><div style={{ background: el.color, height: `${Math.max(2, d.value / max * 75)}%` }} /><span className="slide-caption pb-4">{d.label}</span></div>)}</div></div>;
-  }
+  if (el.type === "chart") return <ChartRenderer chart={el} />;
   const colors = el.gradientColors?.length ? el.gradientColors : [el.fill, el.fill2];
   const fill = el.gradient ? gradientCss(el.gradientType, el.gradientAngle, colors) : el.fill;
   if (el.shape === "line" || el.shape === "arrow") return <svg viewBox={`0 0 ${el.w} ${el.h}`} className="h-full w-full"><line x1="0" y1={el.h / 2} x2={el.w - 15} y2={el.h / 2} stroke={el.stroke} strokeWidth={el.strokeWidth} />{el.shape === "arrow" && <path d={`M ${el.w - 30} 0 L ${el.w} ${el.h / 2} L ${el.w - 30} ${el.h}`} stroke={el.stroke} strokeWidth={el.strokeWidth} fill="none" />}</svg>;
@@ -40,6 +41,8 @@ function ElementContent({ el, presenting, fillStyle }: { el: SlideElement; prese
   return <div className="flex h-full w-full items-center justify-center" style={{ background: fill, color: el.textColor, fontSize: el.fontSize, fontFamily: fontStack(el.fontFamily), border: `${el.strokeWidth}px ${el.dash === "solid" ? "solid" : el.dash} ${el.stroke}`, borderRadius: el.shape === "ellipse" ? "50%" : el.radius, clipPath: clip[el.shape], ...fillStyle }}>{el.text}</div>;
 }
 
+const MemoElementContent = memo(ElementContent);
+
 function TextContent({ el, presenting }: { el: TextEl; presenting: boolean }) {
   const editing = useDeck(s => s.editingTextId === el.id) && !presenting;
   const style: CSSProperties = { fontFamily: fontStack(el.fontFamily), fontSize: el.fontSize, fontWeight: el.fontWeight, color: el.color, lineHeight: el.lineHeight, letterSpacing: el.letterSpacing, textAlign: el.align, fontStyle: el.italic ? "italic" : "normal", textDecoration: [el.underline ? "underline" : "", el.strike ? "line-through" : ""].join(" "), padding: el.padding, background: el.fill, borderRadius: el.radius, whiteSpace: "pre-wrap", overflowWrap: "break-word" };
@@ -50,20 +53,7 @@ function TextContent({ el, presenting }: { el: TextEl; presenting: boolean }) {
 
 type ResizeHandle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 
-function findAxisSnap(anchors: number[], targets: number[], threshold: number): { delta: number; guide: number } | null {
-  let best: { delta: number; guide: number } | null = null;
-  for (const anchor of anchors) {
-    for (const target of targets) {
-      const delta = target - anchor;
-      if (Math.abs(delta) <= threshold && (!best || Math.abs(delta) < Math.abs(best.delta))) {
-        best = { delta, guide: target };
-      }
-    }
-  }
-  return best;
-}
-
-export function ScaledSlide({ slide, deck, editable = false, presenting = false, step = 0, previewKey = 0, showGrid = false, morphFrom }: { slide: Slide; deck: Pick<Deck, "width" | "height">; editable?: boolean; presenting?: boolean; step?: number; previewKey?: number; showGrid?: boolean; morphFrom?: Slide }) {
+export function ScaledSlide({ slide, deck, editable = false, presenting = false, step = 0, previewKey = 0, showGrid = false, morphFrom, onSlideAction }: { slide: Slide; deck: Pick<Deck, "width" | "height" | "masters" | "slides">; editable?: boolean; presenting?: boolean; step?: number; previewKey?: number; showGrid?: boolean; morphFrom?: Slide; onSlideAction?: (action: SlideAction) => void }) {
   const host = useRef<HTMLDivElement>(null), scene = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.1);
   const selected = useDeck(s => s.selectedElementIds);
@@ -131,7 +121,7 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
     for (const { anim, offset } of steps[step]?.items ?? []) {
       const node = el.querySelector<HTMLElement>(`[data-element-id="${anim.elementId}"]`);
       const object = slide.elements.find(e => e.id === anim.elementId);
-      if (node) { node.style.visibility = "visible"; animations.push(node.animate(animFrames(anim, object?.rotation), { duration: anim.duration, delay: anim.delay + offset, easing: anim.easing, fill: "both" })); }
+      if (node) { node.style.visibility = "visible"; animations.push(node.animate(animFrames(anim, object?.rotation), { duration: anim.duration, delay: anim.delay + offset, easing: anim.easing, iterations: Math.max(1, anim.repeatCount ?? 1), direction: anim.alternate ? "alternate" : "normal", fill: "both" })); }
     }
     return () => { animations.forEach(a => a.cancel()); el.querySelectorAll<HTMLElement>("[data-element-id]").forEach(n => n.style.visibility = ""); };
   }, [slide.id, presenting, step, previewKey, morphFrom]);
@@ -166,8 +156,15 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
     const groupWidth = Math.max(1, groupRight - groupLeft);
     const groupHeight = Math.max(1, groupBottom - groupTop);
     const peers = slide.elements.filter(item => !selectedIds.has(item.id) && !item.hidden);
-    const xTargets = [0, deck.width / 2, deck.width, ...peers.flatMap(item => [item.x, item.x + item.w / 2, item.x + item.w])];
-    const yTargets = [0, deck.height / 2, deck.height, ...peers.flatMap(item => [item.y, item.y + item.h / 2, item.y + item.h])];
+    const rememberPreviousPosition = isFeatureEnabled("rememberedPositionSnapping");
+    const snapTargets = collectSnapTargets(
+      peers,
+      deck.width,
+      deck.height,
+      rememberPreviousPosition,
+    );
+    const xTargets = snapTargets.x;
+    const yTargets = snapTargets.y;
     const threshold = 8 / Math.max(interactionScale, 0.1);
 
     const move = (ev: globalThis.PointerEvent) => {
@@ -296,6 +293,18 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
     const up = () => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
+      if (mode !== "rotate" && isFeatureEnabled("rememberedPositionSnapping")) {
+        useDeck.getState().mutate(d => {
+          const current = d.slides.find(item => item.id === slide.id);
+          if (!current) return;
+          for (const original of originals) {
+            const item = current.elements.find(candidate => candidate.id === original.id);
+            if (item && !item.locked) {
+              item.snapMemory = { x: original.x, y: original.y, w: original.w, h: original.h };
+            }
+          }
+        }, { history: false });
+      }
       setSnapGuides({ x: null, y: null });
     };
     window.addEventListener("pointermove", move);
@@ -305,12 +314,23 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
     <div className="slide-wrapper" style={{ width: deck.width, height: deck.height, marginLeft: -deck.width / 2, marginTop: -deck.height / 2, transform: `scale(${scale})` }}>
       <div ref={scene} className="slide-content h-full w-full" style={{ background: slide.background.type === "gradient" ? gradientCss(slide.background.gradientType, slide.background.angle, slide.background.gradientColors?.length ? slide.background.gradientColors : [slide.background.color, slide.background.color2]) : slide.background.color }}>
         {slide.background.type === "image" && <img src={background} alt="" className="absolute inset-0 h-full w-full" style={{ objectFit: slide.background.imageFit }} />}
+        {slide.masterId && deck.masters?.find(master => master.id === slide.masterId) && (() => {
+          const master = deck.masters.find(item => item.id === slide.masterId)!;
+          const slideNumber = deck.slides.findIndex(item => item.id === slide.id) + 1;
+          return <div className={`master-frame master-layout-${master.layout}`} aria-hidden="true">
+            {master.showAccentRule && <div className="master-accent-rule" style={{ background: master.accentColor }} />}
+            {master.showTitlePlaceholder && <div className={`master-title-placeholder master-title-${master.layout}`} style={{ color: master.titleColor }}>{slide.name}</div>}
+            {master.footerText && <span style={{ color: master.titleColor }}>{master.footerText}</span>}
+            {master.showSlideNumber && <span style={{ color: master.titleColor }}>{slideNumber}</span>}
+          </div>;
+        })()}
         {showGrid && <div className="stage-grid pointer-events-none absolute inset-0" style={{ backgroundSize: "40px 40px" }} />}
         {slide.elements.filter(e => !e.hidden).map(el => {
-          const groupShapes = el.type === "shape" && el.groupId
-            ? slide.elements.filter((item): item is Extract<SlideElement, { type: "shape" }> => item.type === "shape" && item.groupId === el.groupId)
+          const groupMembers = el.type === "shape" && el.groupId
+            ? slide.elements.filter(item => item.groupId === el.groupId)
             : [];
-          const gradientSource = groupShapes.find(item => item.gradient) ?? (el.type === "shape" ? el : undefined);
+          const groupShapes = groupMembers.filter((item): item is ShapeEl => item.type === "shape");
+          const gradientSource = getSharedGroupGradient(groupShapes, groupShapes.length === groupMembers.length);
           let groupFillStyle: CSSProperties | undefined;
           if (el.type === "shape" && gradientSource?.gradient && groupShapes.length > 1) {
             const groupLeft = Math.min(...groupShapes.map(item => item.x));
@@ -324,8 +344,8 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
               backgroundRepeat: "no-repeat",
             };
           }
-          return <div key={el.id} data-element-id={el.id} data-object-name={el.name} className={`slide-object ${editable ? "editable-object" : ""} ${editable && selected.includes(el.id) ? "object-selected" : ""}`} style={{ left: el.x, top: el.y, width: el.w, height: el.h, transform: `rotate(${el.rotation}deg)`, opacity: el.opacity, cursor: presenting && el.hyperlink ? "pointer" : undefined, filter: el.blur ? `blur(${el.blur}px)` : undefined, boxShadow: el.shadow.on ? `${el.shadow.x}px ${el.shadow.y}px ${el.shadow.blur}px ${el.shadow.color}` : undefined }} onPointerDown={e => manipulate(e, el, "move")} onClick={e => { if (presenting && el.hyperlink) { e.stopPropagation(); const raw = el.hyperlink.trim(); const href = /^(https?:|mailto:|tel:)/i.test(raw) ? raw : `https://${raw}`; try { const parsed = new URL(href); if (["http:", "https:", "mailto:", "tel:"].includes(parsed.protocol)) window.open(href, "_blank", "noopener,noreferrer"); } catch { /* Ignore invalid presentation links. */ } } }} onDoubleClick={e => { if (editable && el.type === "text") { e.stopPropagation(); useDeck.getState().setEditingText(el.id); } }}>
-            <ElementContent el={el} presenting={presenting} fillStyle={groupFillStyle} />
+          return <div key={el.id} data-element-id={el.id} data-object-name={el.name} className={`slide-object ${editable ? "editable-object" : ""} ${editable && selected.includes(el.id) ? "object-selected" : ""}`} style={{ left: el.x, top: el.y, width: el.w, height: el.h, transform: `rotate(${el.rotation}deg)`, opacity: el.opacity, cursor: presenting && (el.hyperlink || el.slideAction) ? "pointer" : undefined, filter: el.blur ? `blur(${el.blur}px)` : undefined, boxShadow: el.shadow.on ? `${el.shadow.x}px ${el.shadow.y}px ${el.shadow.blur}px ${el.shadow.color}` : undefined }} onPointerDown={e => manipulate(e, el, "move")} onClick={e => { if (!presenting) return; if (el.slideAction && onSlideAction) { e.stopPropagation(); onSlideAction(el.slideAction); return; } if (el.hyperlink) { e.stopPropagation(); const raw = el.hyperlink.trim(); const href = /^(https?:|mailto:|tel:)/i.test(raw) ? raw : `https://${raw}`; try { const parsed = new URL(href); if (["http:", "https:", "mailto:", "tel:"].includes(parsed.protocol)) window.open(href, "_blank", "noopener,noreferrer"); } catch { /* Ignore invalid presentation links. */ } } }} onDoubleClick={e => { if (editable && el.type === "text") { e.stopPropagation(); useDeck.getState().setEditingText(el.id); } }}>
+            <MemoElementContent el={el} presenting={presenting} fillStyle={groupFillStyle} />
             {editable && selected.includes(el.id) && <>
               {(["nw", "n", "ne", "e", "se", "s", "sw", "w"] as ResizeHandle[]).map(handle => <span key={handle} className="resize-handle" data-handle={handle} role="presentation" aria-label={`Resize ${handle}`} onPointerDown={e => manipulate(e, el, "resize", handle)} />)}
               <span className="rotate-handle" onPointerDown={e => manipulate(e, el, "rotate")} />
@@ -334,7 +354,7 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
         })}
         {editable && snapGuides.x !== null && <div className="snap-guide snap-guide-x" style={{ left: snapGuides.x }} />}
         {editable && snapGuides.y !== null && <div className="snap-guide snap-guide-y" style={{ top: snapGuides.y }} />}
-        {morphGhosts.map(ghost => <div key={`morph-${ghost.id}`} data-morph-ghost={ghost.id} className="slide-object morph-ghost" style={{ left: ghost.x, top: ghost.y, width: ghost.w, height: ghost.h, transform: `rotate(${ghost.rotation}deg)`, opacity: ghost.opacity, pointerEvents: "none" }}><ElementContent el={ghost} presenting={presenting} /></div>)}
+        {morphGhosts.map(ghost => <div key={`morph-${ghost.id}`} data-morph-ghost={ghost.id} className="slide-object morph-ghost" style={{ left: ghost.x, top: ghost.y, width: ghost.w, height: ghost.h, transform: `rotate(${ghost.rotation}deg)`, opacity: ghost.opacity, pointerEvents: "none" }}><MemoElementContent el={ghost} presenting={presenting} /></div>)}
       </div>
     </div>
   </div>;

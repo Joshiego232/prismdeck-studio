@@ -77,13 +77,22 @@ export const ANIMATIONS: AnimPreset[] = [
   { id: "pulse", label: "Pulse", kind: "emphasis" }, { id: "spin", label: "Spin", kind: "emphasis" },
   { id: "shake", label: "Shake", kind: "emphasis" }, { id: "glow", label: "Flash", kind: "emphasis" },
   { id: "wobble", label: "Wobble", kind: "emphasis" },
+  { id: "float", label: "Float", kind: "emphasis" }, { id: "heartbeat", label: "Heartbeat", kind: "emphasis" },
+  { id: "rubberBand", label: "Rubber band", kind: "emphasis" }, { id: "swing", label: "Swing", kind: "emphasis" },
+  { id: "rollIn", label: "Roll in", kind: "entrance" }, { id: "rollOut", label: "Roll out", kind: "exit" },
   { id: "fadeOut", label: "Fade out", kind: "exit" }, { id: "slideOut", label: "Fly out", kind: "exit", directional: true },
   { id: "zoomOut", label: "Zoom out", kind: "exit" }, { id: "sink", label: "Sink", kind: "exit" },
 ];
 
-export function animFrames(a: Pick<Animation, "effect" | "direction">, baseRot = 0): Keyframe[] {
+export function animFrames(a: Pick<Animation, "effect" | "direction"> & Partial<Pick<Animation, "motionPath">>, baseRot = 0): Keyframe[] {
   const [x, y] = vec(a.direction, 300);
   const r = `rotate(${baseRot}deg)`;
+  if (a.motionPath && a.motionPath.length >= 2) {
+    return a.motionPath.map((point, index) => ({
+      transform: `translate(${point.x}px, ${point.y}px) ${r}`,
+      offset: index / (a.motionPath!.length - 1),
+    }));
+  }
   switch (a.effect) {
     case "fadeIn": return [{ opacity: 0 }, { opacity: 1 }];
     case "slideIn": return [{ opacity: 0, transform: `translate(${x}px, ${y}px) ${r}` }, { opacity: 1, transform: `translate(0,0) ${r}` }];
@@ -101,6 +110,12 @@ export function animFrames(a: Pick<Animation, "effect" | "direction">, baseRot =
     case "shake": return [0, -24, 24, -16, 16, -6, 0].map((d) => ({ transform: `translateX(${d}px) ${r}` }));
     case "glow": return [{ filter: "brightness(1)" }, { filter: "brightness(1.8) drop-shadow(0 0 30px white)" }, { filter: "brightness(1)" }];
     case "wobble": return [0, -8, 6, -4, 2, 0].map((d) => ({ transform: `rotate(${baseRot + d}deg)` }));
+    case "float": return [{ transform: `translateY(0) ${r}` }, { transform: `translateY(-28px) ${r}` }, { transform: `translateY(0) ${r}` }];
+    case "heartbeat": return [{ transform: `scale(1) ${r}` }, { transform: `scale(1.12) ${r}`, offset: 0.18 }, { transform: `scale(1) ${r}`, offset: 0.36 }, { transform: `scale(1.16) ${r}`, offset: 0.54 }, { transform: `scale(1) ${r}` }];
+    case "rubberBand": return [{ transform: `scale3d(1,1,1) ${r}` }, { transform: `scale3d(1.22,.78,1) ${r}`, offset: 0.3 }, { transform: `scale3d(.82,1.18,1) ${r}`, offset: 0.5 }, { transform: `scale3d(1.08,.92,1) ${r}`, offset: 0.7 }, { transform: `scale3d(1,1,1) ${r}` }];
+    case "swing": return [0, 12, -8, 5, -3, 0].map((d) => ({ transform: `rotate(${baseRot + d}deg)` }));
+    case "rollIn": return [{ opacity: 0, transform: `translateX(-180px) rotate(-120deg) ${r}` }, { opacity: 1, transform: `translateX(0) rotate(0deg) ${r}` }];
+    case "rollOut": return [{ opacity: 1, transform: `translateX(0) rotate(0deg) ${r}` }, { opacity: 0, transform: `translateX(180px) rotate(120deg) ${r}` }];
     case "fadeOut": return [{ opacity: 1 }, { opacity: 0 }];
     case "slideOut": return [{ opacity: 1, transform: `translate(0,0) ${r}` }, { opacity: 0, transform: `translate(${-x}px, ${-y}px) ${r}` }];
     case "zoomOut": return [{ opacity: 1, transform: `scale(1) ${r}` }, { opacity: 0, transform: `scale(.3) ${r}` }];

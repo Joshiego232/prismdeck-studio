@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { AlignCenter, AlignLeft, AlignRight, Bold, Italic, Underline, Layers, ChevronUp, ChevronDown, Trash2, Copy, Eye, Lock, Plus } from "lucide-react";
+import { useState, type MouseEvent, type ReactNode } from "react";
+import { AlignCenter, AlignLeft, AlignRight, Bold, Italic, Underline, Layers, ChevronUp, ChevronDown, ChevronRight, Trash2, Copy, Eye, Lock, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDeck, currentSlide, findSlide } from "@/lib/prism/store";
 import { FONT_CATALOGUE, loadWebFont } from "@/lib/prism/fonts";
@@ -7,6 +7,7 @@ import { TRANSITIONS, ANIMATIONS, EASINGS } from "@/lib/prism/effects";
 import { makeAnimation } from "@/lib/prism/factory";
 import { normalizeGradientColors } from "@/lib/prism/gradients";
 import type { Animation, Background, GradientType, Slide, SlideElement } from "@/lib/prism/types";
+import { parseChartData, serializeChartData } from "@/lib/prism/charts";
 
 export function Field({ label, children }: { label: string; children: ReactNode }) { return <label className="property-field"><span>{label}</span>{children}</label>; }
 export function Numeric({ label, value, onChange, min, max }: { label: string; value: number; onChange: (v: number) => void; min?: number; max?: number }) { return <Field label={label}><input aria-label={label} type="number" value={Math.round(value * 100) / 100} min={min} max={max} onChange={e => { const n = Number(e.target.value); if (Number.isFinite(n)) onChange(Math.min(max ?? Infinity, Math.max(min ?? -Infinity, n))); }} /></Field>; }
@@ -48,12 +49,93 @@ export function TransitionControls({ slide }: { slide: Slide }) {
 
 export function AnimationControls({ slide, el }: { slide: Slide; el?: SlideElement | undefined }) {
   const animations = slide.animations.filter(a => a.elementId === el?.id);
-  const patch = (id: string, p: Partial<Animation>) => useDeck.getState().mutate(d => { const a = findSlide(d, slide.id)?.animations.find(a => a.id === id); if (a) Object.assign(a, p); });
-  return <><Field label="Add animation"><select disabled={!el} value="" onChange={e => { const preset = ANIMATIONS.find(a => a.id === e.target.value); if (el && preset) useDeck.getState().mutate(d => findSlide(d, slide.id)?.animations.push(makeAnimation(el.id, preset.kind, preset.id))); }}><option value="">{el ? "Choose an effect…" : "Select an object"}</option>{ANIMATIONS.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}</select></Field>{animations.map((a, i) => <div className="animation-entry" key={a.id}><div className="flex items-center justify-between"><span className="text-xs font-medium">{i + 1}. {ANIMATIONS.find(p => p.id === a.effect)?.label ?? a.effect}</span><Button variant="ghost" size="icon" title="Remove animation" onClick={() => useDeck.getState().mutate(d => { const s = findSlide(d, slide.id); if (s) s.animations = s.animations.filter(x => x.id !== a.id); })}><Trash2 /></Button></div><Field label="Start"><select value={a.trigger} onChange={e => patch(a.id, { trigger: e.target.value as Animation["trigger"] })}><option value="onClick">On click</option><option value="withPrevious">With previous</option><option value="afterPrevious">After previous</option></select></Field><div className="property-grid"><Numeric label="Duration (ms)" value={a.duration} min={0} onChange={duration => patch(a.id, { duration })} /><Numeric label="Delay (ms)" value={a.delay} min={0} onChange={delay => patch(a.id, { delay })} /></div></div>)}</>;
+  const patch = (id: string, p: Partial<Animation>) => useDeck.getState().mutate(d => {
+    const animation = findSlide(d, slide.id)?.animations.find(item => item.id === id);
+    if (animation) Object.assign(animation, p);
+  });
+  const move = (id: string, direction: -1 | 1) => useDeck.getState().mutate(d => {
+    const current = findSlide(d, slide.id);
+    if (!current) return;
+    const from = current.animations.findIndex(item => item.id === id);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= current.animations.length) return;
+    [current.animations[from], current.animations[to]] = [current.animations[to]!, current.animations[from]!];
+  });
+  const remove = (id: string) => useDeck.getState().mutate(d => {
+    const current = findSlide(d, slide.id);
+    if (current) current.animations = current.animations.filter(item => item.id !== id);
+  });
+  return <>
+    <Field label="Add animation"><select disabled={!el} value="" onChange={event => {
+      const preset = ANIMATIONS.find(item => item.id === event.target.value);
+      if (el && preset) useDeck.getState().mutate(d => findSlide(d, slide.id)?.animations.push(makeAnimation(el.id, preset.kind, preset.id)));
+    }}><option value="">{el ? "Choose an effect…" : "Select an object"}</option>{ANIMATIONS.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></Field>
+    {animations.map((animation, index) => <div className="animation-entry" key={animation.id}>
+      <div className="flex items-center justify-between gap-2"><span className="text-xs font-medium">{index + 1}. {ANIMATIONS.find(item => item.id === animation.effect)?.label ?? animation.effect}</span><div className="flex items-center">
+        <Button title="Move animation earlier" variant="ghost" size="icon" disabled={index === 0} onClick={() => move(animation.id, -1)}><ChevronUp /></Button>
+        <Button title="Move animation later" variant="ghost" size="icon" disabled={index === animations.length - 1} onClick={() => move(animation.id, 1)}><ChevronDown /></Button>
+        <Button variant="ghost" size="icon" title="Remove animation" onClick={() => remove(animation.id)}><Trash2 /></Button>
+      </div></div>
+      <Field label="Start"><select value={animation.trigger} onChange={event => patch(animation.id, { trigger: event.target.value as Animation["trigger"] })}><option value="onClick">On click</option><option value="withPrevious">With previous</option><option value="afterPrevious">After previous</option></select></Field>
+      <div className="property-grid"><Numeric label="Duration (ms)" value={animation.duration} min={50} max={30000} onChange={duration => patch(animation.id, { duration })} /><Numeric label="Delay (ms)" value={animation.delay} min={0} max={30000} onChange={delay => patch(animation.id, { delay })} /></div>
+      <div className="property-grid"><Numeric label="Repeat count" value={animation.repeatCount ?? 1} min={1} max={20} onChange={repeatCount => patch(animation.id, { repeatCount })} /><Field label="Direction"><select value={animation.direction} onChange={event => patch(animation.id, { direction: event.target.value as Animation["direction"] })}>{["left", "right", "up", "down"].map(direction => <option key={direction}>{direction}</option>)}</select></Field></div>
+      <Field label="Easing"><select value={animation.easing} onChange={event => patch(animation.id, { easing: event.target.value })}>{EASINGS.map(easing => <option key={easing.value} value={easing.value}>{easing.label}</option>)}</select></Field>
+      <label className="flex items-center gap-2 text-[10px] text-muted-foreground"><input type="checkbox" checked={!!animation.motionPath?.length} onChange={event => patch(animation.id, { motionPath: event.target.checked ? [{ x: 0, y: 0 }, { x: 240, y: 0 }] : undefined })} /> Use custom motion path</label>
+      {animation.motionPath?.length && <div className="property-grid">
+        <Numeric label="Path end X (px)" value={animation.motionPath[1]?.x ?? 240} onChange={x => patch(animation.id, { motionPath: [{ x: 0, y: 0 }, { x, y: animation.motionPath?.[1]?.y ?? 0 }] })} />
+        <Numeric label="Path end Y (px)" value={animation.motionPath[1]?.y ?? 0} onChange={y => patch(animation.id, { motionPath: [{ x: 0, y: 0 }, { x: animation.motionPath?.[1]?.x ?? 240, y }] })} />
+      </div>}
+      <label className="flex items-center gap-2 text-[10px] text-muted-foreground"><input type="checkbox" checked={animation.alternate ?? false} onChange={event => patch(animation.id, { alternate: event.target.checked })} /> Alternate direction on each repeat</label>
+    </div>)}
+  </>;
+}
+
+function ChartCsvEditor({ data, onApply }: { data: Array<{ label: string; value: number }>; onApply: (data: Array<{ label: string; value: number }>) => void }) {
+  const [draft, setDraft] = useState(() => serializeChartData(data));
+  const [message, setMessage] = useState("");
+  return <div className="chart-csv-editor">
+    <label>Paste spreadsheet data <small>Label, value — one row per line</small>
+      <textarea rows={5} value={draft} onChange={event => setDraft(event.target.value)} placeholder={"Category,Value\nNorth,42\nSouth,58"} />
+    </label>
+    <Button type="button" variant="outline" size="sm" onClick={() => {
+      const parsed = parseChartData(draft);
+      if (parsed.length < 2) { setMessage("Add at least two valid label/value rows."); return; }
+      onApply(parsed);
+      setMessage(`Imported ${parsed.length} data points.`);
+    }}>Import data</Button>
+    {message && <small className="chart-import-message">{message}</small>}
+  </div>;
 }
 
 export function Inspector({ mode, onMode }: { mode: string; onMode: (s: string) => void }) {
   const st = useDeck(), slide = currentSlide(st);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
+  const layerRows: Array<{ kind: "group"; groupId: string; members: SlideElement[] } | { kind: "element"; element: SlideElement }> = [];
+  const seenGroupIds = new Set<string>();
+  for (const element of [...slide.elements].reverse()) {
+    if (!element.groupId) { layerRows.push({ kind: "element", element }); continue; }
+    if (seenGroupIds.has(element.groupId)) continue;
+    seenGroupIds.add(element.groupId);
+    layerRows.push({ kind: "group", groupId: element.groupId, members: [...slide.elements].reverse().filter(member => member.groupId === element.groupId) });
+  }
+  const selectLayerElements = (event: MouseEvent<HTMLButtonElement>, ids: string[]) => {
+    const mode = event.shiftKey ? "add" : event.metaKey || event.ctrlKey ? "toggle" : "single";
+    st.selectElements(ids, mode);
+  };
+  const renderLayerObject = (element: SlideElement) => <div key={element.id} draggable onDragStart={event => {
+    event.dataTransfer.setData("application/x-prism-layer-ids", JSON.stringify([element.id]));
+    event.dataTransfer.effectAllowed = "move";
+    event.currentTarget.classList.add("layer-dragging");
+  }} onDragEnd={event => event.currentTarget.classList.remove("layer-dragging")} onDragOver={event => event.preventDefault()} onDrop={event => {
+    event.preventDefault();
+    const sourceIds = JSON.parse(event.dataTransfer.getData("application/x-prism-layer-ids") || "[]") as string[];
+    if (sourceIds.length && !sourceIds.includes(element.id)) st.reorderElements(sourceIds, element.id);
+  }} className={`layer-row layer-child layer-draggable ${st.selectedElementIds.includes(element.id) ? "selected-layer" : ""}`}>
+    <span className="layer-drag-grip" title="Drag to reorder">⋮⋮</span>
+    <Button variant="ghost" className="min-w-0 flex-1 justify-start truncate" onClick={event => selectLayerElements(event, [element.id])}>{element.name}</Button>
+    <Button variant="ghost" size="icon" title="Toggle visibility" onClick={() => st.updateElements([element.id], { hidden: !element.hidden })}><Eye className={element.hidden ? "opacity-30" : ""} /></Button>
+    <Button variant="ghost" size="icon" title="Toggle lock" onClick={() => st.updateElements([element.id], { locked: !element.locked })}><Lock className={element.locked ? "" : "opacity-30"} /></Button>
+  </div>;
   const el = slide.elements.find(e => st.selectedElementIds.includes(e.id));
   const update = (p: Record<string, unknown>) => st.updateElements(st.selectedElementIds, p, "inspector");
   const selectedShapeIds = slide.elements.filter(item => item.type === "shape" && st.selectedElementIds.includes(item.id)).map(item => item.id);
@@ -69,11 +151,24 @@ export function Inspector({ mode, onMode }: { mode: string; onMode: (s: string) 
 
     {mode === "Layers" ? <div className="p-3">
       <div className="section-label mb-3"><Layers size={14} /> Objects · {slide.elements.length}</div>
-      {[...slide.elements].reverse().map(e => <div key={e.id} className={`layer-row ${st.selectedElementIds.includes(e.id) ? "selected-layer" : ""}`}>
-        <Button variant="ghost" className="min-w-0 flex-1 justify-start truncate" onClick={() => st.selectElements(e.groupId ? slide.elements.filter(item => item.groupId === e.groupId).map(item => item.id) : [e.id])}>{e.name}</Button>
-        <Button variant="ghost" size="icon" title="Toggle visibility" onClick={() => st.updateElements([e.id], { hidden: !e.hidden })}><Eye className={e.hidden ? "opacity-30" : ""} /></Button>
-        <Button variant="ghost" size="icon" title="Toggle lock" onClick={() => st.updateElements([e.id], { locked: !e.locked })}><Lock className={e.locked ? "" : "opacity-30"} /></Button>
-      </div>)}
+      {layerRows.map(row => {
+        if (row.kind === "element") return renderLayerObject(row.element);
+        const memberIds = row.members.map(member => member.id);
+        const selectedCount = memberIds.filter(id => st.selectedElementIds.includes(id)).length;
+        const groupClass = selectedCount === memberIds.length ? "selected-layer" : selectedCount > 0 ? "selected-layer-partial" : "";
+        const expanded = expandedGroups.has(row.groupId);
+        return <div key={row.groupId} className="layer-group">
+          <div className={`layer-row layer-group-row layer-draggable ${groupClass}`} draggable onDragStart={event => { event.dataTransfer.setData("application/x-prism-layer-ids", JSON.stringify(memberIds)); event.dataTransfer.effectAllowed = "move"; }} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); const sourceIds = JSON.parse(event.dataTransfer.getData("application/x-prism-layer-ids") || "[]") as string[]; if (sourceIds.length && !sourceIds.some(id => memberIds.includes(id)) && memberIds[0]) st.reorderElements(sourceIds, memberIds[0]); }}>
+            <Button type="button" variant="ghost" size="icon" className="layer-expander" title={expanded ? "Collapse group" : "Expand group"} aria-label={expanded ? "Collapse group" : "Expand group"} aria-expanded={expanded} onClick={() => setExpandedGroups(current => {
+              const n = new Set(current); if (n.has(row.groupId)) n.delete(row.groupId); else n.add(row.groupId); return n;
+            })}>{expanded ? <ChevronDown /> : <ChevronRight />}</Button>
+            <Button type="button" variant="ghost" className="min-w-0 flex-1 justify-start truncate" onClick={event => selectLayerElements(event, memberIds)}>
+              <Layers size={13} /><span>Group: {row.members[0]?.name ?? "Untitled"}</span><small className="layer-group-count">{row.members.length} objects</small>
+            </Button>
+          </div>
+          {expanded && <div className="layer-group-children">{row.members.map(renderLayerObject)}</div>}
+        </div>;
+      })}
     </div> : mode === "Slide customisation" ? <>
       <section className="inspector-section">
         <h3>Slide customisation</h3>
@@ -176,12 +271,50 @@ export function Inspector({ mode, onMode }: { mode: string; onMode: (s: string) 
       </section>}
 
       {el && <section className="inspector-section">
-        <h3>Interaction</h3>
-        <Field label="Hyperlink"><input type="url" placeholder="https://example.com" value={el.hyperlink ?? ""} onChange={e => update({ hyperlink: e.target.value })} /></Field>
-        <p className="text-[10px] text-muted-foreground">Opens in a new tab when this object is clicked during the presentation.</p>
+        <h3>Interaction & navigation</h3>
+        <Field label="Click action"><select value={el.slideAction?.kind ?? "none"} onChange={event => {
+          const kind = event.target.value;
+          update({ slideAction: kind === "none" ? undefined : { kind: kind as NonNullable<typeof el.slideAction>["kind"] } });
+        }}>
+          <option value="none">No slide action</option>
+          <option value="next">Next slide</option>
+          <option value="previous">Previous slide</option>
+          <option value="first">First slide</option>
+          <option value="last">Last slide</option>
+          <option value="go-to">Go to specific slide</option>
+        </select></Field>
+        {el.slideAction?.kind === "go-to" && <Field label="Destination slide"><select value={el.slideAction.targetSlideId ?? ""} onChange={event => update({ slideAction: { kind: "go-to", targetSlideId: event.target.value } })}>
+          <option value="">Choose destination…</option>{st.deck.slides.map((item, index) => <option key={item.id} value={item.id}>{index + 1}. {item.name}</option>)}
+        </select></Field>}
+        <Field label="External hyperlink"><input type="url" placeholder="https://example.com" value={el.hyperlink ?? ""} onChange={event => update({ hyperlink: event.target.value || undefined })} /></Field>
+        <p className="text-[10px] text-muted-foreground">Actions activate when this object is clicked during a presentation. Slide actions take priority over external links.</p>
       </section>}
       {el?.type === "image" && <section className="inspector-section"><h3>Image</h3><Field label="Fit"><select value={el.fit} onChange={e => update({ fit: e.target.value })}>{["cover", "contain", "fill"].map(v => <option key={v}>{v}</option>)}</select></Field>{(["brightness", "contrast", "saturation"] as const).map(k => <Field key={k} label={k}><input type="range" aria-label={k} min={-100} max={100} value={el.adjust[k]} onChange={e => update({ adjust: { ...el.adjust, [k]: Number(e.target.value) } })} /></Field>)}</section>}
-      {el?.type === "chart" && <section className="inspector-section"><h3>Chart data</h3><Field label="Title"><input value={el.title} onChange={e => update({ title: e.target.value })} /></Field>{el.data.map((d, i) => <div className="property-grid" key={i}><Field label={`Label ${i + 1}`}><input value={d.label} onChange={e => update({ data: el.data.map((x, n) => n === i ? { ...x, label: e.target.value } : x) })} /></Field><Numeric label={`Value ${i + 1}`} value={d.value} onChange={value => update({ data: el.data.map((x, n) => n === i ? { ...x, value } : x) })} /></div>)}</section>}
+      {el?.type === "chart" && <section className="inspector-section">
+        <h3>Chart designer</h3>
+        <Field label="Chart title"><input value={el.title} onChange={event => update({ title: event.target.value })} /></Field>
+        <Field label="Chart style"><select value={el.chartType} onChange={event => update({ chartType: event.target.value as typeof el.chartType })}>
+          <option value="bar">Vertical bars</option><option value="column">Columns</option><option value="horizontal">Horizontal bars</option><option value="line">Line</option><option value="area">Area</option><option value="pie">Pie</option><option value="donut">Doughnut</option>
+        </select></Field>
+        <div className="property-grid">
+          <Field label="Series colour"><input type="color" value={el.color} onChange={event => update({ color: event.target.value })} /></Field>
+          <Field label="Text colour"><input type="color" value={el.textColor} onChange={event => update({ textColor: event.target.value })} /></Field>
+        </div>
+        <Field label="Axis caption"><input value={el.axisLabel ?? ""} onChange={event => update({ axisLabel: event.target.value })} placeholder="Optional units or context" /></Field>
+        <div className="chart-display-options">
+          <label><input type="checkbox" checked={el.showValues ?? false} onChange={event => update({ showValues: event.target.checked })} /> Show values</label>
+          <label><input type="checkbox" checked={el.showLegend ?? true} onChange={event => update({ showLegend: event.target.checked })} /> Show legend</label>
+        </div>
+        <div className="chart-data-list">
+          <div className="flex items-center justify-between"><strong>Data points</strong><Button size="sm" variant="outline" onClick={() => update({ data: [...el.data, { label: `Item ${el.data.length + 1}`, value: 0 }] })}><Plus size={13}/> Add row</Button></div>
+          {el.data.map((datum, index) => <div className="chart-data-row" key={index}>
+            <Field label={`Label ${index + 1}`}><input value={datum.label} onChange={event => update({ data: el.data.map((item, i) => i === index ? { ...item, label: event.target.value } : item) })} /></Field>
+            <Numeric label="Value" value={datum.value} onChange={value => update({ data: el.data.map((item, i) => i === index ? { ...item, value } : item) })} />
+            <Button title={`Remove row ${index + 1}`} variant="ghost" size="icon" disabled={el.data.length <= 2} onClick={() => update({ data: el.data.filter((_, i) => i !== index) })}><Trash2 /></Button>
+          </div>)}
+        </div>
+        <ChartCsvEditor key={el.id} data={el.data} onApply={data => update({ data })} />
+      </section>}
       {el && <section className="inspector-section"><h3>Arrange</h3><div className="flex gap-1"><Button title="Bring forward" variant="ghost" size="icon" onClick={() => st.reorderElement(el.id, "forward")}><ChevronUp /></Button><Button title="Send backward" variant="ghost" size="icon" onClick={() => st.reorderElement(el.id, "backward")}><ChevronDown /></Button><Button title="Duplicate object" variant="ghost" size="icon" onClick={st.duplicateSelected}><Copy /></Button><Button title="Delete object" variant="ghost" size="icon" onClick={st.deleteSelected}><Trash2 /></Button></div></section>}
     </>}
 
