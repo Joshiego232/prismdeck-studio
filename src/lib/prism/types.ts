@@ -17,6 +17,25 @@ export const SHAPE_KINDS: ShapeKind[] = [
   "plus", "cross", "heart", "cloud", "line", "arrow",
 ];
 
+export interface VisualAdjustments {
+  exposure: number;
+  brightness: number;
+  contrast: number;
+  highlights: number;
+  shadows: number;
+  blacks: number;
+  whites: number;
+  saturation: number;
+  vibrance: number;
+  temperature: number;
+  tint: number;
+  hue: number;
+  clarity: number;
+  sharpness: number;
+  fade: number;
+  vignette: number;
+}
+
 export interface Effects {
   shadow: { on: boolean; x: number; y: number; blur: number; color: string };
   blur: number;
@@ -30,6 +49,8 @@ interface BaseEl extends Effects {
   x: number; y: number; w: number; h: number;
   rotation: number;
   opacity: number;
+  /** Optional non-destructive colour and tonal adjustments shared by visual element types. */
+  visualAdjustments?: VisualAdjustments;
   locked?: boolean;
   hidden?: boolean;
   groupId?: string;
