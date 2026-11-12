@@ -5,7 +5,7 @@ import { makeShape, uid } from "@/lib/prism/factory";
 import type { ShapeEl, ShapeKind } from "@/lib/prism/types";
 import { ChevronDown, Search, Sparkles, X } from "lucide-react";
 
-type Category = "Trees" | "Grass & foliage" | "Flowers" | "Planets" | "Buildings" | "Landscapes" | "Objects";
+type Category = "Trees" | "Grass & foliage" | "Flowers" | "Planets" | "Buildings" | "Landscapes" | "Terrain" | "Objects";
 type Part = { shape: ShapeKind; x: number; y: number; w: number; h: number; fill: string; stroke?: string; strokeWidth?: number; rotation?: number; radius?: number; gradient?: string[]; depth?: boolean; opacity?: number; name?: string };
 type Preset = { id: string; name: string; category: Category; description: string; parts: Part[] };
 const q = (shape: ShapeKind, x: number, y: number, w: number, h: number, fill: string, extra: Partial<Part> = {}): Part => ({ shape, x, y, w, h, fill, ...extra });
@@ -288,7 +288,136 @@ function makeHouse(id:string,name:string,kind:string):Preset{
   return preset(id,name,"Buildings",desc,p);
 }
 
+
+type TerrainForm = "hill" | "mountain" | "plateau" | "plain";
+type TerrainSeason = "spring" | "autumn" | "snow" | "desert";
+
+function addTerrainTree(parts: Part[], x: number, groundY: number, season: TerrainSeason, size = 1) {
+  const trunk = season === "desert" ? "#8d5c37" : "#74503a";
+  if (season === "desert") {
+    parts.push(q("roundRect", x - 9 * size, groundY - 105 * size, 18 * size, 105 * size, "#4f8c55", { radius: 9 * size }));
+    parts.push(q("roundRect", x - 34 * size, groundY - 82 * size, 18 * size, 52 * size, "#5f9b5d", { radius: 9 * size }));
+    parts.push(q("roundRect", x + 16 * size, groundY - 68 * size, 18 * size, 46 * size, "#5f9b5d", { radius: 9 * size }));
+    parts.push(q("roundRect", x - 35 * size, groundY - 82 * size, 20 * size, 16 * size, "#5f9b5d", { radius: 8 * size }));
+    parts.push(q("roundRect", x + 16 * size, groundY - 68 * size, 18 * size, 16 * size, "#5f9b5d", { radius: 8 * size }));
+    return;
+  }
+  const conifer = season === "snow";
+  if (conifer) {
+    parts.push(q("rect", x - 7 * size, groundY - 42 * size, 14 * size, 42 * size, trunk));
+    for (let tier = 0; tier < 3; tier++) {
+      const width = (74 - tier * 13) * size;
+      const height = 62 * size;
+      const y = groundY - (112 - tier * 37) * size;
+      parts.push(q("triangle", x - width / 2, y, width, height, tier % 2 ? "#2d7253" : "#205d48"));
+      parts.push(q("triangle", x - width * .28, y + 12 * size, width * .56, height * .62, "#4b936c"));
+      parts.push(q("triangle", x - width * .3, y + 1 * size, width * .6, height * .23, "#f5fbff", { opacity: .9 }));
+    }
+  } else {
+    const leaves = season === "autumn" ? ["#a94e2d", "#cf7332", "#e5a347"] : ["#2d7547", "#4c9a54", "#81b968"];
+    parts.push(q("rect", x - 8 * size, groundY - 68 * size, 16 * size, 68 * size, trunk));
+    parts.push(ell(x - 44 * size, groundY - 142 * size, 88 * size, 90 * size, leaves[0]!));
+    parts.push(ell(x - 37 * size, groundY - 155 * size, 76 * size, 83 * size, leaves[1]!));
+    parts.push(ell(x - 18 * size, groundY - 143 * size, 52 * size, 62 * size, leaves[2]!));
+    parts.push(ell(x - 48 * size, groundY - 112 * size, 42 * size, 48 * size, leaves[2]!));
+  }
+}
+
+function makeTerrainPreset(id: string, name: string, form: TerrainForm, season: TerrainSeason, wooded = false): Preset {
+  const palette = season === "autumn"
+    ? { surface: "#b96835", light: "#e2a14b", mid: "#c77a3d", dark: "#84472f", cliff: "#966047", rock: "#725044", snow: "#f7e9d6" }
+    : season === "snow"
+      ? { surface: "#e8f1f3", light: "#ffffff", mid: "#bfd5df", dark: "#607d8d", cliff: "#8298a1", rock: "#607684", snow: "#ffffff" }
+      : season === "desert"
+        ? { surface: "#d4a157", light: "#f0cb83", mid: "#e4b76b", dark: "#a66a3c", cliff: "#aa7848", rock: "#8d6241", snow: "#f6d99d" }
+        : { surface: "#4d9156", light: "#a1ca79", mid: "#70ad68", dark: "#2f704b", cliff: "#8a7659", rock: "#667d70", snow: "#edf5ed" };
+  const parts: Part[] = [];
+  const soil = "#645342";
+  if (form === "hill") {
+    // The silhouette meets the left and right tile edges at the same 400 px groundline.
+    parts.push(ell(0, 170, 720, 460, palette.surface));
+    parts.push(ell(105, 265, 300, 310, palette.mid, 0, { opacity: .92 }));
+    parts.push(ell(355, 250, 280, 330, palette.light, 0, { opacity: .72 }));
+    if (season === "snow") {
+      parts.push(ell(130, 205, 460, 210, palette.snow, 0, { opacity: .68 }));
+    }
+    parts.push(q("rect", 0, 400, 720, 200, soil));
+    parts.push(q("rect", 0, 400, 720, 13, season === "snow" ? "#d7e7ed" : season === "desert" ? "#9c6e3f" : palette.dark, { opacity: .9 }));
+  } else if (form === "mountain") {
+    parts.push(q("triangle", 0, 80, 720, 320, palette.dark));
+    parts.push(q("triangle", 110, 190, 390, 210, palette.rock));
+    parts.push(q("triangle", 365, 145, 355, 255, palette.mid));
+    parts.push(q("triangle", 75, 240, 270, 160, palette.surface));
+    if (season === "snow") {
+      parts.push(q("triangle", 235, 80, 250, 150, palette.snow));
+      parts.push(q("triangle", 140, 190, 160, 90, palette.snow));
+      parts.push(q("triangle", 490, 145, 150, 105, palette.snow));
+    } else if (season === "autumn") {
+      parts.push(q("triangle", 250, 130, 210, 90, "#d99a5a", { opacity: .9 }));
+    } else if (season === "desert") {
+      parts.push(q("triangle", 245, 125, 205, 105, "#e8c17b", { opacity: .9 }));
+    }
+    parts.push(q("rect", 0, 400, 720, 200, soil));
+    parts.push(q("rect", 0, 400, 720, 13, palette.dark));
+  } else if (form === "plateau") {
+    // A broad, gently sloped shoulder reaches the common groundline at both tile edges.
+    parts.push(q("trapezoid", 0, 200, 720, 200, palette.cliff, { gradient: [palette.cliff, palette.rock] }));
+    parts.push(q("rect", 0, 400, 720, 200, soil));
+    parts.push(q("rect", 130, 199, 460, 24, palette.surface));
+    parts.push(q("rect", 130, 218, 460, 7, palette.dark, { opacity: .35 }));
+    parts.push(q("rect", 0, 400, 720, 13, palette.dark, { opacity: .65 }));
+    for (let i = 0; i < 3; i++) parts.push(q("rect", 28, 285 + i * 34, 664, 5, palette.rock, { opacity: .22 + i * .05 }));
+    if (season === "snow") {
+      parts.push(q("rect", 130, 190, 460, 17, palette.snow));
+      parts.push(q("rect", 130, 206, 460, 7, "#d5e5ed"));
+    }
+  } else {
+    // Plains share the hill tile's equal-height contact edge, with only a gentle dune rise.
+    parts.push(ell(0, 210, 720, 380, palette.surface));
+    parts.push(ell(125, 300, 320, 250, palette.light, 0, { opacity: .68 }));
+    parts.push(q("rect", 0, 400, 720, 200, soil));
+    parts.push(q("rect", 0, 400, 720, 13, palette.dark, { opacity: .72 }));
+    parts.push(ell(390, 320, 240, 150, palette.mid, 0, { opacity: .65 }));
+  }
+  if (wooded) {
+    const baseY = form === "plateau" ? 197 : 392;
+    const scale = form === "plateau" ? .82 : form === "mountain" ? .84 : 1;
+    addTerrainTree(parts, 205, baseY, season, scale);
+    addTerrainTree(parts, 355, baseY - (form === "plateau" ? 0 : 8), season, scale * .88);
+    addTerrainTree(parts, 520, baseY, season, scale * .92);
+  }
+  return preset(id, name, "Terrain", `${name}. A layered, editable terrain tile with matching left and right contact elevations for continuous landscape building.`, parts);
+}
+
+const TERRAIN_PRESETS: Preset[] = [
+  makeTerrainPreset("hills-green", "Rolling green hills", "hill", "spring"),
+  makeTerrainPreset("hills-snow", "Snow-covered hills", "hill", "snow"),
+  makeTerrainPreset("hills-autumn", "Autumn hills", "hill", "autumn"),
+  makeTerrainPreset("hills-woodland", "Green hills with trees", "hill", "spring", true),
+  makeTerrainPreset("hills-snowy-woodland", "Snowy hills with trees", "hill", "snow", true),
+  makeTerrainPreset("hills-autumn-woodland", "Autumn hills with trees", "hill", "autumn", true),
+  makeTerrainPreset("hills-desert", "Desert hills", "hill", "desert"),
+  makeTerrainPreset("mountains-alpine", "Alpine mountains", "mountain", "spring"),
+  makeTerrainPreset("mountains-snow", "Snow-capped mountains", "mountain", "snow"),
+  makeTerrainPreset("mountains-autumn", "Autumn mountain range", "mountain", "autumn"),
+  makeTerrainPreset("mountains-woodland", "Mountains with forests", "mountain", "spring", true),
+  makeTerrainPreset("mountains-snowy-woodland", "Snowy mountains with forests", "mountain", "snow", true),
+  makeTerrainPreset("mountains-autumn-woodland", "Autumn mountains with trees", "mountain", "autumn", true),
+  makeTerrainPreset("plateau-spring", "Spring plateau", "plateau", "spring"),
+  makeTerrainPreset("plateau-spring-woodland", "Spring plateau with trees", "plateau", "spring", true),
+  makeTerrainPreset("plateau-autumn", "Autumn plateau", "plateau", "autumn"),
+  makeTerrainPreset("plateau-autumn-woodland", "Autumn plateau with trees", "plateau", "autumn", true),
+  makeTerrainPreset("plateau-snow", "Snow-covered plateau", "plateau", "snow"),
+  makeTerrainPreset("plateau-snow-woodland", "Snow plateau with trees", "plateau", "snow", true),
+  makeTerrainPreset("plateau-desert", "Desert plateau", "plateau", "desert"),
+  makeTerrainPreset("plateau-desert-cacti", "Desert plateau with cacti", "plateau", "desert", true),
+  makeTerrainPreset("desert-plains", "Desert plains", "plain", "desert"),
+  makeTerrainPreset("desert-plains-dunes", "Desert dune plains", "plain", "desert", true),
+  makeTerrainPreset("desert-mountain-foothills", "Desert rocky foothills", "mountain", "desert"),
+];
+
 const PRESETS:Preset[]=[
+  ...TERRAIN_PRESETS,
   makeTree("birch-tree","Silver birch","Pale trunk with black bark marks, fine branches and an airy crown.","column",{leaf:"#78a95b",light:"#a7c879",dark:"#4f7c48",trunk:"#e7e2d3"}),
   makeTree("oak-tree","English oak","Broad domed crown, thick branching structure and deep green leaf clusters.","round",{leaf:"#25804c",light:"#66b96a",dark:"#145d39",trunk:"#91613e"}),
   makeTree("cedar-tree","Atlas cedar","Strong trunk and broad, layered evergreen shelves with cool blue-green needles.","cedar",{leaf:"#397c75",light:"#74b4a2",dark:"#1d4f50",trunk:"#755139"}),
@@ -358,9 +487,10 @@ const PRESETS:Preset[]=[
   ]),
 ];
 
-export const SHAPE_PRESET_CATEGORIES=["All","Trees","Grass & foliage","Flowers","Planets","Buildings","Landscapes","Objects"] as const;
+export const SHAPE_PRESET_CATEGORIES=["All","Trees","Grass & foliage","Flowers","Planets","Buildings","Landscapes","Terrain","Objects"] as const;
 export type ShapePresetCategory=typeof SHAPE_PRESET_CATEGORIES[number];
 export const SHAPE_PRESET_IDS=PRESETS.map(item=>item.id);
+export const TERRAIN_PRESET_IDS=PRESETS.filter(item=>item.category==="Terrain").map(item=>item.id);
 export const SHAPE_PRESET_COUNTS=Object.fromEntries(SHAPE_PRESET_CATEGORIES.slice(1).map(category=>[category,PRESETS.filter(item=>item.category===category).length])) as Record<Category,number>;
 
 export function createShapePresetElements(id:string,slideWidth:number,slideHeight:number):ShapeEl[]{
@@ -425,7 +555,7 @@ export function ShapePresetGallery({onInsert}:{onInsert:(id:string)=>void}){
     {open&&typeof document!=="undefined"&&createPortal(
       <section ref={menu} className="shape-preset-gallery" role="dialog" aria-label="Illustration and shape presets" style={{top:position.top,left:position.left}}>
         <header className="shape-preset-header"><div><strong>Illustrations & shape presets</strong><small>{PRESETS.length} illustrations · native editable layers</small></div><Button size="icon" variant="ghost" onClick={()=>setOpen(false)} aria-label="Close presets"><X size={17}/></Button></header>
-        <div className="shape-preset-search"><Search size={16}/><input value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search birch, oak, Jupiter, apartments…" aria-label="Search illustrations"/></div>
+        <div className="shape-preset-search"><Search size={16}/><input value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search birch, oak, Jupiter, terrain, hills, mountains, deserts…" aria-label="Search illustrations"/></div>
         <nav className="shape-preset-categories" aria-label="Preset categories">{SHAPE_PRESET_CATEGORIES.map(item=><button key={item} type="button" className={category===item?"active":""} onClick={()=>setCategory(item)}>{item}{item!=="All"&&<span>{SHAPE_PRESET_COUNTS[item]}</span>}</button>)}</nav>
         <div className="shape-preset-grid">{filtered.map(item=><button key={item.id} type="button" className="shape-preset-card" onClick={()=>{onInsert(item.id);setOpen(false);}}>
           <span className="shape-preset-preview"><Preview item={item}/></span><span className="shape-preset-card-title">{item.name}</span><span className="shape-preset-card-meta">{item.category} · {item.parts.length} editable layers</span><span className="shape-preset-card-description">{item.description}</span>
