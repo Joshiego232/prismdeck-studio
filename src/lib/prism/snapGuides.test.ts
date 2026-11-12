@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { collectSnapTargets, findAxisSnap } from "./snapGuides";
+import { collectSnapTargets, constrainToOrtho, constrainToPolar, findAxisSnap } from "./snapGuides";
 
 describe("remembered snap guide calculations", () => {
   const object = {
@@ -38,5 +38,27 @@ describe("remembered snap guide calculations", () => {
     const targets = collectSnapTargets([], 1000, 600);
     expect(targets.x).toEqual([0, 500, 1000]);
     expect(targets.y).toEqual([0, 300, 600]);
+  });
+});
+
+
+describe("precision movement tracking", () => {
+  it("locks a drag to the dominant horizontal axis", () => {
+    expect(constrainToOrtho(42, 18)).toEqual({ dx: 42, dy: 0, axis: "x" });
+  });
+  it("locks a drag to the dominant vertical axis", () => {
+    expect(constrainToOrtho(12, 35)).toEqual({ dx: 0, dy: 35, axis: "y" });
+  });
+  it("keeps the selected orthogonal axis stable for the whole drag", () => {
+    expect(constrainToOrtho(8, 20, "x")).toEqual({ dx: 8, dy: 0, axis: "x" });
+  });
+  it("tracks movement to the nearest 45 degree polar increment without changing distance", () => {
+    const result = constrainToPolar(100, 72, 45);
+    expect(result.angle).toBeCloseTo(45);
+    expect(Math.hypot(result.dx, result.dy)).toBeCloseTo(Math.hypot(100, 72));
+  });
+  it("supports horizontal and vertical polar directions", () => {
+    expect(constrainToPolar(100, 5, 15).angle).toBe(0);
+    expect(constrainToPolar(5, 100, 90).angle).toBe(90);
   });
 });

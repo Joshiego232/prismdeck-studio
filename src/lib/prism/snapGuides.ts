@@ -74,3 +74,22 @@ export function findAxisSnap(
   }
   return best;
 }
+
+
+export type OrthoAxis = "x" | "y";
+
+/** Lock a drag vector to the dominant horizontal or vertical axis. */
+export function constrainToOrtho(dx: number, dy: number, preferredAxis?: OrthoAxis): { dx: number; dy: number; axis: OrthoAxis } {
+  const axis = preferredAxis ?? (Math.abs(dx) >= Math.abs(dy) ? "x" : "y");
+  return axis === "x" ? { dx, dy: 0, axis } : { dx: 0, dy, axis };
+}
+
+/** Preserve drag distance while rounding its direction to the nearest polar increment. */
+export function constrainToPolar(dx: number, dy: number, incrementDegrees = 15): { dx: number; dy: number; angle: number } {
+  const distance = Math.hypot(dx, dy);
+  if (distance === 0) return { dx: 0, dy: 0, angle: 0 };
+  const increment = Math.max(1, Math.min(180, Math.abs(incrementDegrees))) * Math.PI / 180;
+  const angle = Math.atan2(dy, dx);
+  const trackedAngle = Math.round(angle / increment) * increment;
+  return { dx: Math.cos(trackedAngle) * distance, dy: Math.sin(trackedAngle) * distance, angle: trackedAngle * 180 / Math.PI };
+}

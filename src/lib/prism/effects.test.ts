@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { TRANSITIONS, transitionFrames } from "./effects";
+import { ANIMATIONS, animFrames, TRANSITIONS, transitionFrames } from "./effects";
 import type { Transition } from "./types";
 
 const makeTransition = (type: string): Transition => ({
@@ -42,6 +42,20 @@ describe("slide transition gallery", () => {
       const frames = transitionFrames(makeTransition(preset.id));
       expect(frames.incoming.length, preset.id).toBeGreaterThanOrEqual(2);
       expect(frames.outgoing.length, preset.id).toBeGreaterThanOrEqual(2);
+    }
+  });
+});
+
+
+describe("illustration-safe emphasis animation", () => {
+  it("keeps every rubber-band keyframe proportional", () => {
+    const animation = { effect: "rubberBand", direction: "right" as const };
+    const frames = animFrames(animation);
+    expect(ANIMATIONS.some(item => item.id === "rubberBand")).toBe(true);
+    for (const frame of frames) {
+      const transform = String(frame.transform ?? "");
+      const match = transform.match(/scale3d\(([-.\d]+),([-.\d]+),1\)/);
+      if (match) expect(Number(match[1])).toBeCloseTo(Number(match[2]));
     }
   });
 });

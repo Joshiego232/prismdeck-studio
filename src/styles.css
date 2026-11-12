@@ -1015,3 +1015,29 @@
   .photo-preview-stage { height:150px; min-height:150px; }
   .photo-live-slide-preview { padding:5px; }
 }
+
+
+/* Bottom quick settings for precision placement */
+.snap-settings-wrap { position:relative; display:flex; align-items:center; }
+.status-controls .snap-settings-trigger { width:auto; min-width:104px; height:28px; padding:0 9px; gap:6px; border:1px solid var(--border); border-radius:5px; font-size:10px; }
+.status-controls .snap-settings-trigger.active { color:var(--primary); border-color:var(--primary); background:var(--accent); }
+.snap-settings-popover { position:absolute; z-index:150; right:0; bottom:calc(100% + 10px); width:286px; padding:13px; display:grid; gap:8px; color:var(--foreground); background:var(--panel); border:1px solid var(--border); border-radius:9px; box-shadow:0 16px 42px rgba(0,0,0,.38); }
+.snap-settings-heading { display:flex; flex-direction:column; gap:3px; padding:0 2px 8px; border-bottom:1px solid var(--border); }
+.snap-settings-heading strong { font-size:12px; }
+.snap-settings-heading span { font-size:9px; color:var(--muted-foreground); }
+.snap-option { display:flex; align-items:flex-start; gap:9px; cursor:pointer; padding:3px 2px; }
+.snap-option input { margin:2px 0 0; accent-color:var(--primary); flex:0 0 auto; }
+.snap-option>span { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.snap-option strong { font-size:10px; font-weight:600; }
+.snap-option small { color:var(--muted-foreground); font-size:9px; line-height:1.35; }
+.snap-setting-select { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:2px; font-size:10px; color:var(--muted-foreground); }
+.snap-setting-select select { width:100px; height:27px; padding:0 7px; border:1px solid var(--border); border-radius:5px; background:var(--panel-2); color:var(--foreground); font-size:10px; }
+.snap-setting-select select:disabled { opacity:.45; cursor:not-allowed; }
+.snap-settings-separator { height:1px; background:var(--border); margin:2px 0; }
+.snap-settings-hint { display:flex; align-items:flex-start; gap:8px; padding:8px; border-radius:6px; background:var(--panel-2); color:var(--muted-foreground); font-size:9px; line-height:1.4; }
+.snap-settings-hint kbd { flex:0 0 auto; padding:2px 5px; border:1px solid var(--border); border-radius:4px; color:var(--foreground); font:10px var(--font-mono); }
+@media(max-width:600px) {
+  .status-controls .snap-settings-trigger { min-width:31px; width:31px; padding:0; justify-content:center; }
+  .status-controls .snap-settings-trigger span { display:none; }
+  .snap-settings-popover { position:fixed; right:10px; bottom:45px; width:min(286px,calc(100vw - 20px)); }
+}

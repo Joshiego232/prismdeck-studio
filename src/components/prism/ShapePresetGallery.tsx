@@ -5,7 +5,7 @@ import { makeShape, uid } from "@/lib/prism/factory";
 import type { ShapeEl, ShapeKind } from "@/lib/prism/types";
 import { ChevronDown, Search, Sparkles, X } from "lucide-react";
 
-type Category = "Trees" | "Grass & foliage" | "Flowers" | "Planets" | "Buildings" | "Landscapes" | "Objects";
+type Category = "Trees" | "Grass & foliage" | "Flowers" | "Planets" | "Buildings" | "Landscapes" | "Terrain" | "Objects";
 type Part = { shape: ShapeKind; x: number; y: number; w: number; h: number; fill: string; stroke?: string; strokeWidth?: number; rotation?: number; radius?: number; gradient?: string[]; depth?: boolean; opacity?: number; name?: string };
 type Preset = { id: string; name: string; category: Category; description: string; parts: Part[] };
 const q = (shape: ShapeKind, x: number, y: number, w: number, h: number, fill: string, extra: Partial<Part> = {}): Part => ({ shape, x, y, w, h, fill, ...extra });
@@ -288,7 +288,314 @@ function makeHouse(id:string,name:string,kind:string):Preset{
   return preset(id,name,"Buildings",desc,p);
 }
 
+
+type TerrainForm = "hill" | "mountain" | "plateau" | "plain";
+type TerrainSeason = "spring" | "autumn" | "snow" | "desert";
+
+export const TERRAIN_TILE_SPEC = {
+  width: 720,
+  height: 600,
+  baselineY: 400,
+  substrateColor: "#66513f",
+} as const;
+
+type TerrainPalette = {
+  surface: string;
+  light: string;
+  mid: string;
+  dark: string;
+  cliff: string;
+  rock: string;
+  snow: string;
+  shadow: string;
+};
+
+function terrainPalette(season: TerrainSeason): TerrainPalette {
+  if (season === "autumn") return {
+    surface: "#a95732", light: "#e6ac57", mid: "#c8793c", dark: "#713e2e",
+    cliff: "#986044", rock: "#6e4a3b", snow: "#fae6c8", shadow: "#502f27",
+  };
+  if (season === "snow") return {
+    surface: "#dce9ed", light: "#ffffff", mid: "#b6ceda", dark: "#587382",
+    cliff: "#839ba5", rock: "#536b78", snow: "#ffffff", shadow: "#435e6d",
+  };
+  if (season === "desert") return {
+    surface: "#c58d49", light: "#f3d18c", mid: "#dfb36c", dark: "#94613a",
+    cliff: "#a97849", rock: "#795539", snow: "#f7dfaa", shadow: "#68472f",
+  };
+  return {
+    surface: "#478653", light: "#a4cb77", mid: "#70a95f", dark: "#285e40",
+    cliff: "#85745a", rock: "#536a57", snow: "#f0f7ed", shadow: "#244c38",
+  };
+}
+
+function hillSurfaceY(x: number, height = 200): number {
+  const normalized = (x - 360) / 360;
+  return 400 - height * Math.sqrt(Math.max(0, 1 - normalized * normalized));
+}
+
+function addTreeShadow(parts: Part[], x: number, y: number, size: number) {
+  parts.push(ell(x - 45 * size, y - 8 * size, 90 * size, 15 * size, "#263d32", 0, { opacity: .22 }));
+}
+
+function addDeciduousTerrainTree(parts: Part[], x: number, baseY: number, season: "spring" | "autumn", size: number) {
+  const trunk = season === "autumn" ? "#76503a" : "#684b36";
+  const canopy = season === "autumn"
+    ? ["#a84f2d", "#c66b34", "#e49a43", "#f0bd61"]
+    : ["#276844", "#398650", "#5aa15d", "#a2c66c"];
+  addTreeShadow(parts, x, baseY, size);
+  parts.push(q("trapezoid", x - 14 * size, baseY - 102 * size, 28 * size, 105 * size, trunk, {
+    gradient: ["#a77a50", trunk], depth: true, name: "Tapered tree trunk",
+  }));
+  parts.push(q("rect", x - 5 * size, baseY - 86 * size, 4 * size, 73 * size, "#d4a477", { opacity: .55 }));
+  parts.push(ln(x, baseY - 68 * size, x - 40 * size, baseY - 130 * size, trunk, 9 * size));
+  parts.push(ln(x + 1 * size, baseY - 69 * size, x + 42 * size, baseY - 132 * size, trunk, 9 * size));
+  parts.push(ln(x, baseY - 87 * size, x - 7 * size, baseY - 161 * size, trunk, 7 * size));
+  // A deliberately balanced crown: large smooth masses first, then smaller highlights.
+  parts.push(ell(x - 71 * size, baseY - 226 * size, 142 * size, 119 * size, canopy[0]!, 0, { depth: true }));
+  parts.push(ell(x - 58 * size, baseY - 242 * size, 116 * size, 104 * size, canopy[1]!));
+  parts.push(ell(x - 104 * size, baseY - 205 * size, 80 * size, 88 * size, canopy[1]!));
+  parts.push(ell(x + 24 * size, baseY - 205 * size, 80 * size, 88 * size, canopy[0]!));
+  parts.push(ell(x - 40 * size, baseY - 228 * size, 66 * size, 67 * size, canopy[2]!));
+  parts.push(ell(x + 10 * size, baseY - 202 * size, 48 * size, 54 * size, canopy[3]!, 0, { opacity: .88 }));
+  parts.push(ell(x - 83 * size, baseY - 185 * size, 42 * size, 36 * size, canopy[2]!, 0, { opacity: .8 }));
+  parts.push(ell(x - 27 * size, baseY - 251 * size, 50 * size, 26 * size, canopy[3]!, -8, { opacity: .75 }));
+  if (season === "autumn") {
+    // Small, ordered leaf accents rather than random blobs.
+    for (const [dx, dy, rotation] of [[-49,-188,-25], [32,-177,18], [-18,-211,12], [61,-196,-12]] as const) {
+      parts.push(q("ellipse", x + dx * size - 7 * size, baseY + dy * size - 5 * size, 14 * size, 10 * size, "#f0bd61", { rotation, opacity: .9 }));
+    }
+  } else {
+    parts.push(ell(x - 48 * size, baseY - 211 * size, 31 * size, 18 * size, "#c1db83", -20, { opacity: .8 }));
+    parts.push(ell(x + 22 * size, baseY - 225 * size, 27 * size, 16 * size, "#c1db83", 18, { opacity: .75 }));
+  }
+}
+
+function addEvergreenTerrainTree(parts: Part[], x: number, baseY: number, size: number) {
+  addTreeShadow(parts, x, baseY, size);
+  parts.push(q("trapezoid", x - 9 * size, baseY - 93 * size, 18 * size, 96 * size, "#684a35", {
+    gradient: ["#a27a50", "#573d2e"], name: "Evergreen trunk",
+  }));
+  const tiers = [
+    { y: 86, w: 124, h: 80 },
+    { y: 119, w: 104, h: 76 },
+    { y: 151, w: 82, h: 70 },
+    { y: 181, w: 60, h: 62 },
+  ];
+  tiers.forEach((tier, index) => {
+    const top = baseY - tier.y * size - tier.h * size;
+    parts.push(q("triangle", x - tier.w * size / 2, top, tier.w * size, tier.h * size, index % 2 ? "#236344" : "#174f3b", {
+      gradient: [index % 2 ? "#3b8b5b" : "#2a7650", "#174b39"], depth: index === 0,
+    }));
+    parts.push(q("triangle", x - tier.w * .31 * size, top + tier.h * .2 * size, tier.w * .62 * size, tier.h * .58 * size, "#4c9866", { opacity: .86 }));
+    parts.push(ln(x, baseY - (tier.y + 7) * size, x - tier.w * .3 * size, baseY - (tier.y - 23) * size, "#78b07a", 5 * size));
+    parts.push(ln(x, baseY - (tier.y + 7) * size, x + tier.w * .3 * size, baseY - (tier.y - 23) * size, "#78b07a", 5 * size));
+    parts.push(q("triangle", x - tier.w * .18 * size, top + tier.h * .05 * size, tier.w * .36 * size, tier.h * .3 * size, "#e9f3ed", { opacity: .88 }));
+  });
+  parts.push(ln(x - 28 * size, baseY - 109 * size, x - 6 * size, baseY - 134 * size, "#a6c8b4", 3 * size));
+}
+
+function addCactus(parts: Part[], x: number, baseY: number, size: number) {
+  addTreeShadow(parts, x, baseY, size * .78);
+  const green = "#477d45";
+  parts.push(q("roundRect", x - 12 * size, baseY - 105 * size, 24 * size, 108 * size, green, {
+    radius: 12 * size, gradient: ["#79a95a", "#315f3d"], depth: true,
+  }));
+  parts.push(q("roundRect", x - 37 * size, baseY - 76 * size, 16 * size, 49 * size, "#5c914d", { radius: 8 * size }));
+  parts.push(q("roundRect", x - 37 * size, baseY - 77 * size, 36 * size, 15 * size, "#5c914d", { radius: 8 * size }));
+  parts.push(q("roundRect", x + 19 * size, baseY - 91 * size, 16 * size, 62 * size, "#54894a", { radius: 8 * size }));
+  parts.push(q("roundRect", x + 1 * size, baseY - 92 * size, 34 * size, 15 * size, "#54894a", { radius: 8 * size }));
+  parts.push(q("rect", x - 4 * size, baseY - 91 * size, 3 * size, 76 * size, "#b4cd7c", { opacity: .55 }));
+  parts.push(q("rect", x - 30 * size, baseY - 65 * size, 3 * size, 25 * size, "#b4cd7c", { opacity: .45 }));
+  for (const [height, side] of [[32, -1], [53, 1], [73, -1], [91, 1]] as const) {
+    const spineX = x + side * 11 * size;
+    parts.push(ln(spineX, baseY - height * size, spineX + side * 5 * size, baseY - (height + 4) * size, "#d7e4a9", 2 * size));
+  }
+}
+
+function addTerrainTree(parts: Part[], x: number, baseY: number, season: TerrainSeason, size = 1) {
+  if (season === "desert") addCactus(parts, x, baseY, size);
+  else if (season === "snow") addEvergreenTerrainTree(parts, x, baseY, size);
+  else addDeciduousTerrainTree(parts, x, baseY, season, size);
+}
+
+function addGrassDetails(parts: Part[], x: number, y: number, season: TerrainSeason, scale = 1) {
+  if (season === "snow") {
+    parts.push(ell(x - 17 * scale, y - 7 * scale, 34 * scale, 12 * scale, "#ffffff", 0, { opacity: .86 }));
+    return;
+  }
+  const colour = season === "autumn" ? "#b86b37" : season === "desert" ? "#9d7948" : "#4c8e4f";
+  parts.push(ln(x, y, x - 8 * scale, y - 24 * scale, colour, 3 * scale));
+  parts.push(ln(x + 2 * scale, y, x + 9 * scale, y - 28 * scale, colour, 3 * scale));
+  parts.push(ln(x + 1 * scale, y - 2 * scale, x + 16 * scale, y - 18 * scale, colour, 3 * scale));
+}
+
+function makeTerrainPreset(id: string, name: string, form: TerrainForm, season: TerrainSeason, wooded = false): Preset {
+  const p = terrainPalette(season);
+  const parts: Part[] = [];
+  const soil = TERRAIN_TILE_SPEC.substrateColor;
+  const baseline = TERRAIN_TILE_SPEC.baselineY;
+
+  if (form === "hill") {
+    // A single continuous elliptical silhouette gives the tile a clean, repeatable edge.
+    parts.push(ell(0, 200, 720, 400, p.surface, 0, { gradient: [p.light, p.surface, p.dark] }));
+    parts.push(ell(74, 244, 390, 160, p.light, -6, { opacity: season === "snow" ? .42 : .28 }));
+    parts.push(ell(390, 267, 245, 116, p.mid, 8, { opacity: .34 }));
+    if (season === "snow") {
+      parts.push(ell(118, 188, 484, 174, "#ffffff", 0, { opacity: .84 }));
+      parts.push(ell(195, 213, 310, 82, "#ffffff", -5, { opacity: .68 }));
+      parts.push(ell(285, 302, 240, 17, "#9eb8c8", -7, { opacity: .42 }));
+    } else if (season === "autumn") {
+      parts.push(ell(136, 305, 300, 34, "#f0b35c", -8, { opacity: .55 }));
+      parts.push(ell(420, 328, 190, 23, "#7b432e", 4, { opacity: .34 }));
+      for (const x of [105, 150, 570, 615]) parts.push(ell(x, 365 + (x % 2) * 5, 12, 8, "#e5a04c", -18));
+    } else if (season === "spring") {
+      parts.push(ell(132, 302, 260, 42, "#bad986", -7, { opacity: .5 }));
+      parts.push(ell(405, 318, 210, 30, "#2f7548", 6, { opacity: .26 }));
+      for (const x of [82, 118, 608, 648]) addGrassDetails(parts, x, hillSurfaceY(x) + 16, season, .8);
+    } else {
+      parts.push(ell(100, 302, 370, 45, "#f1cd83", -6, { opacity: .4 }));
+      parts.push(ell(350, 332, 300, 26, "#98663d", 5, { opacity: .32 }));
+      for (const x of [100, 145, 570, 620]) addGrassDetails(parts, x, hillSurfaceY(x) + 14, season, .8);
+    }
+    parts.push(q("rect", 0, baseline, 720, 200, soil, { name: "Terrain foundation" }));
+    parts.push(q("rect", 0, baseline, 720, 10, season === "snow" ? "#b8cbd3" : season === "desert" ? "#b98a4d" : p.dark, { opacity: .94, name: "Terrain contact seam" }));
+    if (wooded) {
+      for (const x of [170, 360, 550]) addTerrainTree(parts, x, hillSurfaceY(x, 200), season, x === 360 ? .55 : .52);
+    }
+  } else if (form === "mountain") {
+    // Repeated, deliberate peak rhythm: distant ridge, main summit, then front-facing planes.
+    parts.push(q("triangle", 0, 105, 418, 295, p.dark, { gradient: [p.mid, p.dark], name: "Left distant ridge" }));
+    parts.push(q("triangle", 300, 58, 420, 342, p.rock, { gradient: [p.light, p.rock], name: "Right distant ridge" }));
+    parts.push(q("triangle", 122, 110, 478, 290, p.surface, { gradient: [p.light, p.surface, p.dark], depth: true, name: "Main mountain face" }));
+    parts.push(q("triangle", 122, 110, 239, 290, p.light, { opacity: .34, name: "Sunlit mountain plane" }));
+    parts.push(q("triangle", 361, 110, 239, 290, p.shadow, { opacity: .28, name: "Mountain shadow plane" }));
+    parts.push(q("triangle", 57, 246, 280, 154, p.mid, { opacity: .72 }));
+    parts.push(q("triangle", 385, 228, 260, 172, p.dark, { opacity: .58 }));
+    if (season === "snow") {
+      parts.push(q("triangle", 230, 110, 260, 158, "#ffffff", { name: "Main snow cap" }));
+      parts.push(q("triangle", 230, 110, 130, 158, "#dbe9ed", { opacity: .88 }));
+      parts.push(q("triangle", 417, 155, 92, 93, "#f8fcff", { opacity: .9 }));
+      parts.push(q("triangle", 72, 105, 104, 100, "#ffffff", { opacity: .84 }));
+      parts.push(ell(298, 263, 155, 18, "#94afbd", -9, { opacity: .48 }));
+    } else if (season === "autumn") {
+      parts.push(q("triangle", 252, 160, 118, 75, "#e4a05a", { opacity: .78 }));
+      parts.push(q("triangle", 414, 190, 72, 54, "#c77b3f", { opacity: .62 }));
+    } else if (season === "desert") {
+      parts.push(q("triangle", 252, 160, 118, 75, "#f0d18e", { opacity: .82 }));
+      parts.push(q("triangle", 414, 190, 72, 54, "#d9a65c", { opacity: .7 }));
+    } else {
+      parts.push(q("triangle", 252, 160, 118, 75, "#a7c97d", { opacity: .5 }));
+    }
+    // A smooth, shallow foothill makes the range connect naturally to adjoining tiles.
+    parts.push(ell(0, 325, 720, 150, season === "snow" ? "#8ba6ad" : season === "desert" ? "#bd8d51" : p.surface, 0, {
+      gradient: [p.light, season === "snow" ? "#a9c0c8" : p.mid], opacity: .96,
+    }));
+    parts.push(q("rect", 0, baseline, 720, 200, soil, { name: "Terrain foundation" }));
+    parts.push(q("rect", 0, baseline, 720, 10, season === "snow" ? "#b8cbd3" : season === "desert" ? "#b98a4d" : p.dark, { opacity: .94, name: "Terrain contact seam" }));
+    if (wooded) {
+      for (const [x, size] of [[125,.66],[235,.78],[485,.78],[600,.66]] as const) addTerrainTree(parts, x, 392, season, size);
+    }
+  } else if (form === "plateau") {
+    // Flat summit, symmetric shoulders, bevelled lip and carefully ordered rock strata.
+    parts.push(q("trapezoid", 0, 205, 720, 195, p.cliff, {
+      gradient: [p.light, p.cliff, p.shadow], depth: true, name: "Plateau escarpment",
+    }));
+    parts.push(q("trapezoid", 18, 220, 684, 180, p.rock, { opacity: .45, name: "Escarpment shadow" }));
+    parts.push(q("rect", 128, 190, 464, 24, p.surface, { gradient: [p.light, p.surface], name: "Level plateau top" }));
+    parts.push(q("rect", 128, 207, 464, 8, season === "snow" ? "#d5e5ed" : p.dark, { opacity: .66, name: "Plateau overhang" }));
+    parts.push(q("rect", 0, baseline, 720, 200, soil, { name: "Terrain foundation" }));
+    parts.push(q("rect", 0, baseline, 720, 10, season === "snow" ? "#b8cbd3" : season === "desert" ? "#b98a4d" : p.dark, { opacity: .94, name: "Terrain contact seam" }));
+    // Horizontal mineral layers emphasise the regular, cut-rock cliff faces.
+    for (let i = 0; i < 4; i++) {
+      parts.push(q("rect", 34, 270 + i * 29, 652, 4, i % 2 ? p.light : p.shadow, { opacity: i % 2 ? .28 : .35 }));
+    }
+    for (const x of [74, 646]) {
+      parts.push(q("rect", x, 316, 34, 7, p.light, { opacity: .3 }));
+      parts.push(q("rect", x + 6, 352, 24, 5, p.shadow, { opacity: .28 }));
+    }
+    if (season === "snow") {
+      parts.push(q("rect", 128, 180, 464, 15, "#ffffff", { name: "Snow blanket" }));
+      parts.push(q("rect", 128, 194, 464, 5, "#c5dbe5", { opacity: .9 }));
+      parts.push(ell(196, 182, 155, 13, "#ffffff", -2, { opacity: .92 }));
+      parts.push(ell(384, 181, 166, 12, "#ffffff", 2, { opacity: .92 }));
+    } else if (season === "autumn") {
+      parts.push(q("rect", 128, 181, 464, 10, "#df9850", { opacity: .92 }));
+      for (const x of [170, 212, 525, 562]) parts.push(ell(x, 180, 9, 6, "#f2c36d", 0));
+    } else if (season === "desert") {
+      parts.push(q("rect", 128, 181, 464, 10, "#f0cd8c", { opacity: .94 }));
+      parts.push(ell(220, 181, 150, 12, "#f7dfa9", -2, { opacity: .8 }));
+    } else {
+      parts.push(q("rect", 128, 181, 464, 10, "#a3c976", { opacity: .94 }));
+      for (const x of [162, 210, 512, 562]) addGrassDetails(parts, x, 179, season, .58);
+    }
+    if (wooded) {
+      for (const x of [215, 360, 505]) addTerrainTree(parts, x, 190, season, .7);
+    }
+  } else {
+    // Gently rolling desert plain or open grassland, with controlled broad dune forms.
+    parts.push(ell(0, 210, 720, 380, p.surface, 0, { gradient: [p.light, p.surface, p.dark] }));
+    parts.push(ell(64, 288, 410, 155, p.light, -5, { opacity: .54 }));
+    parts.push(ell(390, 315, 265, 105, p.mid, 5, { opacity: .38 }));
+    if (season === "desert") {
+      parts.push(ell(92, 292, 310, 28, "#f6dfa9", -8, { opacity: .82 }));
+      parts.push(ell(386, 335, 270, 19, "#aa7540", 6, { opacity: .52 }));
+      parts.push(ln(135, 353, 305, 338, "#ae7c48", 4));
+      parts.push(ln(416, 368, 595, 354, "#ae7c48", 4));
+    } else if (season === "autumn") {
+      parts.push(ell(122, 322, 260, 28, "#e0a154", -5, { opacity: .56 }));
+    } else if (season === "snow") {
+      parts.push(ell(90, 248, 420, 125, "#ffffff", -4, { opacity: .78 }));
+      parts.push(ell(380, 316, 250, 35, "#a8c0cd", 6, { opacity: .42 }));
+    } else {
+      parts.push(ell(120, 310, 320, 30, "#b4d784", -6, { opacity: .48 }));
+      for (const x of [70, 120, 600, 650]) addGrassDetails(parts, x, hillSurfaceY(x, 190) + 12, season, .78);
+    }
+    parts.push(q("rect", 0, baseline, 720, 200, soil, { name: "Terrain foundation" }));
+    parts.push(q("rect", 0, baseline, 720, 10, season === "snow" ? "#b8cbd3" : season === "desert" ? "#b98a4d" : p.dark, { opacity: .94, name: "Terrain contact seam" }));
+    if (wooded) {
+      for (const x of [170, 360, 550]) addTerrainTree(parts, x, hillSurfaceY(x, 190), season, x === 360 ? .72 : .66);
+    }
+  }
+
+  return preset(
+    id,
+    name,
+    "Terrain",
+    `${name}. A polished, layered landscape model with deliberate geometry, sculpted lighting and a common edge-to-edge groundline.`,
+    parts,
+  );
+}
+
+const TERRAIN_PRESETS: Preset[] = [
+  makeTerrainPreset("hills-green", "Rolling green hills", "hill", "spring"),
+  makeTerrainPreset("hills-snow", "Snow-covered hills", "hill", "snow"),
+  makeTerrainPreset("hills-autumn", "Autumn hills", "hill", "autumn"),
+  makeTerrainPreset("hills-woodland", "Green hills with trees", "hill", "spring", true),
+  makeTerrainPreset("hills-snowy-woodland", "Snowy hills with trees", "hill", "snow", true),
+  makeTerrainPreset("hills-autumn-woodland", "Autumn hills with trees", "hill", "autumn", true),
+  makeTerrainPreset("hills-desert", "Desert hills", "hill", "desert"),
+  makeTerrainPreset("mountains-alpine", "Alpine mountains", "mountain", "spring"),
+  makeTerrainPreset("mountains-snow", "Snow-capped mountains", "mountain", "snow"),
+  makeTerrainPreset("mountains-autumn", "Autumn mountain range", "mountain", "autumn"),
+  makeTerrainPreset("mountains-woodland", "Mountains with forests", "mountain", "spring", true),
+  makeTerrainPreset("mountains-snowy-woodland", "Snowy mountains with forests", "mountain", "snow", true),
+  makeTerrainPreset("mountains-autumn-woodland", "Autumn mountains with trees", "mountain", "autumn", true),
+  makeTerrainPreset("plateau-spring", "Spring plateau", "plateau", "spring"),
+  makeTerrainPreset("plateau-spring-woodland", "Spring plateau with trees", "plateau", "spring", true),
+  makeTerrainPreset("plateau-autumn", "Autumn plateau", "plateau", "autumn"),
+  makeTerrainPreset("plateau-autumn-woodland", "Autumn plateau with trees", "plateau", "autumn", true),
+  makeTerrainPreset("plateau-snow", "Snow-covered plateau", "plateau", "snow"),
+  makeTerrainPreset("plateau-snow-woodland", "Snow plateau with trees", "plateau", "snow", true),
+  makeTerrainPreset("plateau-desert", "Desert plateau", "plateau", "desert"),
+  makeTerrainPreset("plateau-desert-cacti", "Desert plateau with cacti", "plateau", "desert", true),
+  makeTerrainPreset("desert-plains", "Desert plains", "plain", "desert"),
+  makeTerrainPreset("desert-plains-dunes", "Desert dune plains", "plain", "desert", true),
+  makeTerrainPreset("desert-mountain-foothills", "Desert rocky foothills", "mountain", "desert"),
+];
+
 const PRESETS:Preset[]=[
+  ...TERRAIN_PRESETS,
   makeTree("birch-tree","Silver birch","Pale trunk with black bark marks, fine branches and an airy crown.","column",{leaf:"#78a95b",light:"#a7c879",dark:"#4f7c48",trunk:"#e7e2d3"}),
   makeTree("oak-tree","English oak","Broad domed crown, thick branching structure and deep green leaf clusters.","round",{leaf:"#25804c",light:"#66b96a",dark:"#145d39",trunk:"#91613e"}),
   makeTree("cedar-tree","Atlas cedar","Strong trunk and broad, layered evergreen shelves with cool blue-green needles.","cedar",{leaf:"#397c75",light:"#74b4a2",dark:"#1d4f50",trunk:"#755139"}),
@@ -358,9 +665,10 @@ const PRESETS:Preset[]=[
   ]),
 ];
 
-export const SHAPE_PRESET_CATEGORIES=["All","Trees","Grass & foliage","Flowers","Planets","Buildings","Landscapes","Objects"] as const;
+export const SHAPE_PRESET_CATEGORIES=["All","Trees","Grass & foliage","Flowers","Planets","Buildings","Landscapes","Terrain","Objects"] as const;
 export type ShapePresetCategory=typeof SHAPE_PRESET_CATEGORIES[number];
 export const SHAPE_PRESET_IDS=PRESETS.map(item=>item.id);
+export const TERRAIN_PRESET_IDS=PRESETS.filter(item=>item.category==="Terrain").map(item=>item.id);
 export const SHAPE_PRESET_COUNTS=Object.fromEntries(SHAPE_PRESET_CATEGORIES.slice(1).map(category=>[category,PRESETS.filter(item=>item.category===category).length])) as Record<Category,number>;
 
 export function createShapePresetElements(id:string,slideWidth:number,slideHeight:number):ShapeEl[]{
@@ -425,7 +733,7 @@ export function ShapePresetGallery({onInsert}:{onInsert:(id:string)=>void}){
     {open&&typeof document!=="undefined"&&createPortal(
       <section ref={menu} className="shape-preset-gallery" role="dialog" aria-label="Illustration and shape presets" style={{top:position.top,left:position.left}}>
         <header className="shape-preset-header"><div><strong>Illustrations & shape presets</strong><small>{PRESETS.length} illustrations · native editable layers</small></div><Button size="icon" variant="ghost" onClick={()=>setOpen(false)} aria-label="Close presets"><X size={17}/></Button></header>
-        <div className="shape-preset-search"><Search size={16}/><input value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search birch, oak, Jupiter, apartments…" aria-label="Search illustrations"/></div>
+        <div className="shape-preset-search"><Search size={16}/><input value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search birch, oak, Jupiter, terrain, hills, mountains, deserts…" aria-label="Search illustrations"/></div>
         <nav className="shape-preset-categories" aria-label="Preset categories">{SHAPE_PRESET_CATEGORIES.map(item=><button key={item} type="button" className={category===item?"active":""} onClick={()=>setCategory(item)}>{item}{item!=="All"&&<span>{SHAPE_PRESET_COUNTS[item]}</span>}</button>)}</nav>
         <div className="shape-preset-grid">{filtered.map(item=><button key={item.id} type="button" className="shape-preset-card" onClick={()=>{onInsert(item.id);setOpen(false);}}>
           <span className="shape-preset-preview"><Preview item={item}/></span><span className="shape-preset-card-title">{item.name}</span><span className="shape-preset-card-meta">{item.category} · {item.parts.length} editable layers</span><span className="shape-preset-card-description">{item.description}</span>

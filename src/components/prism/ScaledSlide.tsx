@@ -4,7 +4,8 @@ import { ChartRenderer } from "./ChartRenderer";
 import { getSharedGroupGradient } from "@/lib/prism/groupStyles";
 import { gradientCss } from "@/lib/prism/gradients";
 import { isFeatureEnabled } from "@/lib/prism/featureFlags";
-import { collectSnapTargets, findAxisSnap } from "@/lib/prism/snapGuides";
+import { collectSnapTargets, constrainToOrtho, constrainToPolar, findAxisSnap, type OrthoAxis } from "@/lib/prism/snapGuides";
+import { usePrefs } from "@/lib/prism/prefs";
 import { useDeck } from "@/lib/prism/store";
 import { fontStack, loadWebFont } from "@/lib/prism/fonts";
 import { useResolvedSrc } from "@/lib/prism/assets";
@@ -58,6 +59,13 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
   const host = useRef<HTMLDivElement>(null), scene = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.1);
   const selected = useDeck(s => s.selectedElementIds);
+  const snapEnabled = usePrefs(s => s.snap);
+  const gridSnapEnabled = usePrefs(s => s.gridSnap);
+  const magnetismEnabled = usePrefs(s => s.magnetism);
+  const gridSize = usePrefs(s => s.gridSize);
+  const polarTrackingEnabled = usePrefs(s => s.polarTracking);
+  const polarIncrement = usePrefs(s => s.polarIncrement);
+  const showGuidesEnabled = usePrefs(s => s.showGuides);
   const [snapGuides, setSnapGuides] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
   const background = useResolvedSrc(slide.background.image);
   const morphSources = new Map<string, SlideElement>();
@@ -92,12 +100,30 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
         if (!node) continue;
         const previous = morphSources.get(next.id);
         if (previous) {
-          const sx = Math.max(0.05, previous.w / Math.max(1, next.w));
-          const sy = Math.max(0.05, previous.h / Math.max(1, next.h));
+          const boundsOf = (items: SlideElement[]) => {
+            const left = Math.min(...items.map(item => item.x));
+            const top = Math.min(...items.map(item => item.y));
+            return {
+              x: left,
+              y: top,
+              w: Math.max(1, Math.max(...items.map(item => item.x + item.w)) - left),
+              h: Math.max(1, Math.max(...items.map(item => item.y + item.h)) - top),
+            };
+          };
+          // Morph grouped artwork as one rigid composition: all layers share one uniform scale.
+          const previousMembers = previous.groupId ? morphFrom.elements.filter(item => item.groupId === previous.groupId) : [previous];
+          const nextMembers = next.groupId ? slide.elements.filter(item => item.groupId === next.groupId) : [next];
+          const previousBounds = boundsOf(previousMembers);
+          const nextBounds = boundsOf(nextMembers);
+          const scaleX = previousBounds.w / nextBounds.w;
+          const scaleY = previousBounds.h / nextBounds.h;
+          const uniformScale = Math.max(0.05, Math.sqrt(Math.max(0.0025, scaleX * scaleY)));
           node.style.transformOrigin = "top left";
+          const mappedX = previousBounds.x + (next.x - nextBounds.x) * uniformScale;
+          const mappedY = previousBounds.y + (next.y - nextBounds.y) * uniformScale;
           animations.push(node.animate([
-            { transform: `translate(${previous.x - next.x}px, ${previous.y - next.y}px) rotate(${previous.rotation}deg) scale(${sx}, ${sy})`, opacity: previous.opacity },
-            { transform: `rotate(${next.rotation}deg) scale(1, 1)`, opacity: next.opacity },
+            { transform: `translate(${mappedX - next.x}px, ${mappedY - next.y}px) rotate(${previous.rotation}deg) scale(${uniformScale})`, opacity: previous.opacity },
+            { transform: `rotate(${next.rotation}deg) scale(1)`, opacity: next.opacity },
           ], { duration, easing: slide.transition.easing, fill: "both" }));
         } else {
           animations.push(node.animate([{ opacity: 0, transform: "scale(.92)" }, { opacity: next.opacity, transform: "scale(1)" }], { duration, easing: slide.transition.easing, fill: "both" }));
@@ -145,8 +171,9 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
     state.snapshot();
 
     const startX = event.clientX, startY = event.clientY;
+    let orthoAxis: OrthoAxis | null = null;
     const visibleHostWidth = host.current?.getBoundingClientRect().width ?? 0;
-    const interactionScale = visibleHostWidth > 0 ? visibleHostWidth / deck.width : scale;
+    const interactionScale = Math.max(0.01, scale || (visibleHostWidth > 0 ? visibleHostWidth / deck.width : 0.1));
     const selectedIds = new Set(targetIds);
     const originals = slide.elements.filter(item => selectedIds.has(item.id));
     if (!originals.length) return;
@@ -166,26 +193,43 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
     );
     const xTargets = snapTargets.x;
     const yTargets = snapTargets.y;
-    const threshold = 8 / Math.max(interactionScale, 0.1);
+    const threshold = (magnetismEnabled ? 12 : 4) / Math.max(interactionScale, 0.1);
 
     const move = (ev: globalThis.PointerEvent) => {
       const rawDx = (ev.clientX - startX) / interactionScale;
       const rawDy = (ev.clientY - startY) / interactionScale;
 
       if (mode === "move") {
-        const xSnap = findAxisSnap(
-          [groupLeft + rawDx, groupLeft + rawDx + groupWidth / 2, groupRight + rawDx],
-          xTargets,
-          threshold,
-        );
-        const ySnap = findAxisSnap(
-          [groupTop + rawDy, groupTop + rawDy + groupHeight / 2, groupBottom + rawDy],
-          yTargets,
-          threshold,
-        );
-        const dx = rawDx + (xSnap?.delta ?? 0);
-        const dy = rawDy + (ySnap?.delta ?? 0);
-        setSnapGuides({ x: xSnap?.guide ?? null, y: ySnap?.guide ?? null });
+        let trackedDx = rawDx;
+        let trackedDy = rawDy;
+        const ortho = ev.shiftKey;
+        if (ortho) {
+          const constrained = constrainToOrtho(rawDx, rawDy, orthoAxis ?? undefined);
+          orthoAxis = constrained.axis;
+          trackedDx = constrained.dx;
+          trackedDy = constrained.dy;
+        } else {
+          orthoAxis = null;
+          if (polarTrackingEnabled) {
+            const tracked = constrainToPolar(rawDx, rawDy, polarIncrement);
+            trackedDx = tracked.dx;
+            trackedDy = tracked.dy;
+          }
+        }
+        const xSnap = snapEnabled && (!ortho || orthoAxis === "x")
+          ? findAxisSnap([groupLeft + trackedDx, groupLeft + trackedDx + groupWidth / 2, groupRight + trackedDx], xTargets, threshold)
+          : null;
+        const ySnap = snapEnabled && (!ortho || orthoAxis === "y")
+          ? findAxisSnap([groupTop + trackedDy, groupTop + trackedDy + groupHeight / 2, groupBottom + trackedDy], yTargets, threshold)
+          : null;
+        let dx = trackedDx + (xSnap?.delta ?? 0);
+        let dy = trackedDy + (ySnap?.delta ?? 0);
+        if (gridSnapEnabled) {
+          const step = Math.max(1, gridSize || 40);
+          if (!xSnap && (!ortho || orthoAxis === "x")) dx = Math.round((groupLeft + dx) / step) * step - groupLeft;
+          if (!ySnap && (!ortho || orthoAxis === "y")) dy = Math.round((groupTop + dy) / step) * step - groupTop;
+        }
+        setSnapGuides({ x: showGuidesEnabled ? xSnap?.guide ?? null : null, y: showGuidesEnabled ? ySnap?.guide ?? null : null });
         useDeck.getState().mutate(d => {
           const current = d.slides.find(item => item.id === slide.id);
           if (!current) return;
@@ -224,8 +268,8 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
       // Snap the actively dragged edge (or the centre line for an opposite-axis side handle).
       const xAnchors = hasWest ? [left] : hasEast ? [right] : [(left + right) / 2];
       const yAnchors = hasNorth ? [top] : hasSouth ? [bottom] : [(top + bottom) / 2];
-      const xSnap = findAxisSnap(xAnchors, xTargets, threshold);
-      const ySnap = findAxisSnap(yAnchors, yTargets, threshold);
+      const xSnap = snapEnabled ? findAxisSnap(xAnchors, xTargets, threshold) : null;
+      const ySnap = snapEnabled ? findAxisSnap(yAnchors, yTargets, threshold) : null;
       if (xSnap) {
         if (hasWest) left += xSnap.delta;
         else if (hasEast) right += xSnap.delta;
@@ -271,7 +315,7 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
         if (hasNorth) top = bottom - 40;
         else bottom = top + 40;
       }
-      setSnapGuides({ x: xSnap?.guide ?? null, y: ySnap?.guide ?? null });
+      setSnapGuides({ x: showGuidesEnabled ? xSnap?.guide ?? null : null, y: showGuidesEnabled ? ySnap?.guide ?? null : null });
 
       const nextWidth = Math.max(40, right - left);
       const nextHeight = Math.max(40, bottom - top);
