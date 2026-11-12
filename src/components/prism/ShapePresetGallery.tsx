@@ -329,7 +329,7 @@ function terrainPalette(season: TerrainSeason): TerrainPalette {
   };
 }
 
-function hillSurfaceY(x: number, height = 230): number {
+function hillSurfaceY(x: number, height = 200): number {
   const normalized = (x - 360) / 360;
   return 400 - height * Math.sqrt(Math.max(0, 1 - normalized * normalized));
 }
@@ -434,7 +434,7 @@ function makeTerrainPreset(id: string, name: string, form: TerrainForm, season: 
 
   if (form === "hill") {
     // A single continuous elliptical silhouette gives the tile a clean, repeatable edge.
-    parts.push(ell(0, 170, 720, 460, p.surface, 0, { gradient: [p.light, p.surface, p.dark] }));
+    parts.push(ell(0, 200, 720, 400, p.surface, 0, { gradient: [p.light, p.surface, p.dark] }));
     parts.push(ell(74, 244, 390, 160, p.light, -6, { opacity: season === "snow" ? .42 : .28 }));
     parts.push(ell(390, 267, 245, 116, p.mid, 8, { opacity: .34 }));
     if (season === "snow") {
@@ -457,7 +457,7 @@ function makeTerrainPreset(id: string, name: string, form: TerrainForm, season: 
     parts.push(q("rect", 0, baseline, 720, 200, soil, { name: "Terrain foundation" }));
     parts.push(q("rect", 0, baseline, 720, 10, season === "snow" ? "#b8cbd3" : season === "desert" ? "#b98a4d" : p.dark, { opacity: .94, name: "Terrain contact seam" }));
     if (wooded) {
-      for (const x of [170, 360, 550]) addTerrainTree(parts, x, hillSurfaceY(x, 230), season, x === 360 ? .92 : .82);
+      for (const x of [170, 360, 550]) addTerrainTree(parts, x, hillSurfaceY(x, 200), season, x === 360 ? .55 : .52);
     }
   } else if (form === "mountain") {
     // Repeated, deliberate peak rhythm: distant ridge, main summit, then front-facing planes.
