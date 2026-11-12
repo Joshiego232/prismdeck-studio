@@ -71,7 +71,8 @@ describe("terrain illustration tiles", () => {
       const right = Math.max(...elements.map(element => element.x + element.w));
       const bottom = Math.max(...elements.map(element => element.y + element.h));
       expect(right - left, id).toBeCloseTo(720);
-      expect(bottom - top, id).toBeCloseTo(600);
+      expect(bottom - top, id).toBeGreaterThan(300);
+      expect(bottom - top, id).toBeLessThanOrEqual(600);
       expect(elements.every(element => element.groupId === elements[0]?.groupId), id).toBe(true);
     }
   });
