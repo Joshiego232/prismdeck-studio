@@ -119,8 +119,10 @@ export function ScaledSlide({ slide, deck, editable = false, presenting = false,
           const scaleY = previousBounds.h / nextBounds.h;
           const uniformScale = Math.max(0.05, Math.sqrt(Math.max(0.0025, scaleX * scaleY)));
           node.style.transformOrigin = "top left";
+          const mappedX = previousBounds.x + (next.x - nextBounds.x) * uniformScale;
+          const mappedY = previousBounds.y + (next.y - nextBounds.y) * uniformScale;
           animations.push(node.animate([
-            { transform: `translate(${previous.x - next.x}px, ${previous.y - next.y}px) rotate(${previous.rotation}deg) scale(${uniformScale})`, opacity: previous.opacity },
+            { transform: `translate(${mappedX - next.x}px, ${mappedY - next.y}px) rotate(${previous.rotation}deg) scale(${uniformScale})`, opacity: previous.opacity },
             { transform: `rotate(${next.rotation}deg) scale(1)`, opacity: next.opacity },
           ], { duration, easing: slide.transition.easing, fill: "both" }));
         } else {
