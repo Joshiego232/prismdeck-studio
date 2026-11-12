@@ -4,11 +4,11 @@ PrismDeck Studio is a cross-platform presentation editor built with React, TypeS
 
 ## Development
 
-Requirements: Node.js 20+ and Bun (the repository includes `bun.lock`).
+Requirements: Node.js 20+ and npm.
 
 ```bash
-bun install --frozen-lockfile
-bun run dev
+npm install
+npm run dev
 ```
 
 Open the forwarded port shown by Codespaces to preview the app.
@@ -16,9 +16,9 @@ Open the forwarded port shown by Codespaces to preview the app.
 ## Quality checks
 
 ```bash
-bun run lint
-bun run test
-bun run build
+npm run lint
+npm run test
+npm run build
 ```
 
 GitHub Actions runs the same checks on pushes to `main` and feature branches, and on pull requests into `main`.
@@ -53,8 +53,8 @@ Right-click a slide thumbnail to add a slide after it, duplicate it, or delete i
 ## Slide and object editing
 
 - Use the **Shapes** dropdown on Home or Insert to choose from the shape gallery.
-- Drag objects to snap to slide edges/centres and to alignment points on other objects; cyan guides show active alignments.
-- Selected objects have eight resize handles. Hold `Shift` while dragging a handle to preserve the original aspect ratio.
+- Drag objects to snap to slide edges/centres and to alignment points on other objects; cyan guides show active alignments. The bottom **Snap & track** quick setting controls object snapping, magnetic pull, grid snapping, guide visibility, grid spacing, and polar tracking angle. Hold **Shift while dragging an object** to constrain its movement horizontally or vertically (Ortho).
+- Selected objects have eight resize handles. Hold `Shift` while dragging a resize handle to preserve the original aspect ratio.
 - The Inspector's **Slide customisation** tab contains slide-level settings, including automatic advance, visibility, backgrounds, transitions, and speaker notes.
 - Backgrounds and shapes support up to six gradient colours, multiple gradient styles, and rotation. Grouped shapes share a gradient field only when every member uses the same gradient settings; otherwise individual colours and gradients are preserved.
 - Remembered-position snapping retains an object's previous move/resize bounds as additional alignment guides.
@@ -108,7 +108,7 @@ The Home ribbon's **Insert** group includes a searchable **Illustrations** galle
 
 The botanical collection distinguishes individual species and silhouettes: silver birch, oak, cedar, Scots pine, Norway spruce, silver fir, apple, maple, cypress, coast redwood, giant sequoia, weeping willow, cherry blossom, magnolia, baobab, acacia, date palm, olive, poplar, and dogwood. Separate plant presets cover grass tufts, flowering meadow, cattails, fern, bamboo, wheat, daisy, sunflower, tulip, rose, lavender, hibiscus, bluebells, hydrangea, lotus, and blossom sprigs.
 
-The space collection covers the Sun, all eight major planets, Earth's Moon, and Pluto, with individual surface and atmosphere details. Architecture includes homes, cottages, cabins, glass towers, apartments, Art Deco towers, schools, factories, greenhouses, churches, and townhouses.
+The space collection covers the Sun, all eight major planets, Earth's Moon, and Pluto, with individual surface and atmosphere details. Architecture includes homes, cottages, cabins, glass towers, apartments, Art Deco towers, schools, factories, greenhouses, churches, and townhouses. The Terrain category adds 24 editable landscape tiles: spring, autumn and snow hills; wooded and open mountain ranges; spring, autumn, snow and desert plateaus; desert hills, rocky foothills and plains. Their tile edges share a common baseline and substrate so they can be placed edge-to-edge to build continuous scenery.
 
 Presets are assembled from native PrismDeck shapes—not flattened images. Each illustration is inserted as one group so it can be placed and resized together; use **Ungroup** to edit its leaves, petals, stems, bark, fruit, windows, facade panels, rings, craters, highlights, and other parts. The gallery previews use the same layered colour artwork, and category counts help you browse the growing library.
 
@@ -117,3 +117,9 @@ Presets are assembled from native PrismDeck shapes—not flattened images. Each 
 Select a visual element and open **Quick Edit** or **Photo & Effects Studio** from the Inspector's Photo & visual effects section. Quick Edit provides fast corrections and one-tap looks. The full studio adds Light, Color, Detail, and Effects workspaces with exposure, brightness, contrast, highlights, shadows, blacks, whites, saturation, vibrance, temperature, tint, hue, clarity, sharpness, fade, vignette, glow, shadow, and blur controls.
 
 Adjustments are stored non-destructively with the selected document elements and rendered consistently on images, shapes, text, charts, and video. Older image adjustment values are retained and mapped into the shared adjustment model for compatibility. Multiple selected visual elements can be adjusted together.
+
+
+## Presentation illustration fidelity
+
+- Morphing matching illustrations uses a shared uniform scale for grouped artwork instead of independent horizontal and vertical stretching.
+- The Rubber band emphasis animation uses proportional scaling so illustration layers do not become visibly squashed or elongated during playback.
