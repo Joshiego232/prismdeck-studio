@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createShapePresetElements, SHAPE_PRESET_COUNTS, SHAPE_PRESET_IDS, TERRAIN_PRESET_IDS } from "./ShapePresetGallery";
+import { createShapePresetElements, SHAPE_PRESET_COUNTS, SHAPE_PRESET_IDS, TERRAIN_PRESET_IDS, TERRAIN_TILE_SPEC } from "./ShapePresetGallery";
 
 describe("editable illustration presets", () => {
   it("provides a large, uniquely named catalogue covering the requested subjects", () => {
@@ -63,17 +63,39 @@ describe("terrain illustration tiles", () => {
     ]) expect(TERRAIN_PRESET_IDS).toContain(id);
   });
 
-  it("keeps every terrain tile within the same editable 720 by 600 composition bounds", () => {
+  it("uses the same precise tile width, height, contact line, and substrate for every terrain preset", () => {
     for (const id of TERRAIN_PRESET_IDS) {
       const elements = createShapePresetElements(id, 1920, 1080);
-      const left = Math.min(...elements.map(element => element.x));
-      const top = Math.min(...elements.map(element => element.y));
-      const right = Math.max(...elements.map(element => element.x + element.w));
-      const bottom = Math.max(...elements.map(element => element.y + element.h));
-      expect(right - left, id).toBeCloseTo(720);
-      expect(bottom - top, id).toBeGreaterThan(300);
-      expect(bottom - top, id).toBeLessThanOrEqual(600);
+      const foundation = elements.find(element => element.name === "Terrain foundation");
+      expect(foundation, id).toBeDefined();
+      if (!foundation) continue;
+      const tileLeft = foundation.x;
+      const tileTop = foundation.y - TERRAIN_TILE_SPEC.baselineY;
+      const tileRight = tileLeft + TERRAIN_TILE_SPEC.width;
+      const tileBottom = tileTop + TERRAIN_TILE_SPEC.height;
+      expect(foundation.x, id).toBeCloseTo(tileLeft);
+      expect(foundation.y, id).toBeCloseTo(tileTop + TERRAIN_TILE_SPEC.baselineY);
+      expect(foundation.w, id).toBeCloseTo(TERRAIN_TILE_SPEC.width);
+      expect(foundation.h, id).toBeCloseTo(TERRAIN_TILE_SPEC.height - TERRAIN_TILE_SPEC.baselineY);
+      expect(foundation.fill, id).toBe(TERRAIN_TILE_SPEC.substrateColor);
+      expect(Math.min(...elements.map(element => element.x)), id).toBeGreaterThanOrEqual(tileLeft);
+      expect(Math.max(...elements.map(element => element.x + element.w)), id).toBeLessThanOrEqual(tileRight);
+      expect(Math.min(...elements.map(element => element.y)), id).toBeGreaterThanOrEqual(tileTop);
+      expect(Math.max(...elements.map(element => element.y + element.h)), id).toBeLessThanOrEqual(tileBottom);
       expect(elements.every(element => element.groupId === elements[0]?.groupId), id).toBe(true);
+    }
+  });
+
+  it("gives the wooded terrain variants substantially detailed, editable foliage", () => {
+    for (const id of [
+      "hills-woodland", "hills-snowy-woodland", "hills-autumn-woodland",
+      "mountains-woodland", "mountains-snowy-woodland", "mountains-autumn-woodland",
+      "plateau-spring-woodland", "plateau-autumn-woodland", "plateau-snow-woodland",
+      "plateau-desert-cacti", "desert-plains-dunes",
+    ]) {
+      const elements = createShapePresetElements(id, 1920, 1080);
+      expect(elements.length, id).toBeGreaterThanOrEqual(35);
+      expect(elements.filter(element => element.groupId === elements[0]?.groupId).length, id).toBe(elements.length);
     }
   });
 });
