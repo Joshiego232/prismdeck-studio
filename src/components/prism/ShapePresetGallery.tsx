@@ -407,6 +407,10 @@ function addCactus(parts: Part[], x: number, baseY: number, size: number) {
   parts.push(q("roundRect", x + 1 * size, baseY - 92 * size, 34 * size, 15 * size, "#54894a", { radius: 8 * size }));
   parts.push(q("rect", x - 4 * size, baseY - 91 * size, 3 * size, 76 * size, "#b4cd7c", { opacity: .55 }));
   parts.push(q("rect", x - 30 * size, baseY - 65 * size, 3 * size, 25 * size, "#b4cd7c", { opacity: .45 }));
+  for (const [height, side] of [[32, -1], [53, 1], [73, -1], [91, 1]] as const) {
+    const spineX = x + side * 11 * size;
+    parts.push(ln(spineX, baseY - height * size, spineX + side * 5 * size, baseY - (height + 4) * size, "#d7e4a9", 2 * size));
+  }
 }
 
 function addTerrainTree(parts: Part[], x: number, baseY: number, season: TerrainSeason, size = 1) {
