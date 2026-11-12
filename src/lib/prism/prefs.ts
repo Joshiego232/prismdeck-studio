@@ -9,7 +9,7 @@ export type Accent = "indigo" | "cyan" | "emerald" | "amber" | "rose";
 
 export interface Prefs {
   theme: ThemeMode; accent: Accent; uiScale: number;
-  showGrid: boolean; snap: boolean; gridSize: number; showGuides: boolean;
+  showGrid: boolean; snap: boolean; gridSnap: boolean; magnetism: boolean; gridSize: number; polarTracking: boolean; polarIncrement: number; showGuides: boolean;
   showNavigator: boolean; showInspector: boolean; showTimeline: boolean; timelineHeight: number;
   autosave: boolean; autosaveDelay: number;
   reducedMotion: "system" | "on" | "off"; autoHideControls: boolean; loopShow: boolean;
@@ -23,7 +23,7 @@ export interface Prefs {
 
 export const usePrefs = create<Prefs>()(persist((set, get) => ({
   theme: "dark", accent: "indigo", uiScale: 1,
-  showGrid: false, snap: true, gridSize: 40, showGuides: true,
+  showGrid: false, snap: true, gridSnap: false, magnetism: true, gridSize: 40, polarTracking: false, polarIncrement: 15, showGuides: true,
   showNavigator: true, showInspector: true, showTimeline: false, timelineHeight: 200,
   autosave: true, autosaveDelay: 700,
   reducedMotion: "system", autoHideControls: true, loopShow: false, spellcheck: true,
