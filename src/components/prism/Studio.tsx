@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowDown, ArrowUp, ArrowUpRight, BookmarkPlus, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Copy, Download, Grid2X2, ImagePlus, Layers, Maximize, MonitorPlay, MousePointer2, PanelLeftClose, PanelRightClose, Play, Plus, Redo2, Save, Shapes, Square, StickyNote, Trash2, Type, Undo2, Video, X, ZoomIn, ZoomOut, Triangle, Sparkles, MoveRight, BarChart3, Palette, Network, AlignLeft, AlignCenter, AlignRight, ArrowLeftRight, ArrowUpDown, Pencil, Folder } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpRight, BookmarkPlus, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, Copy, Download, Grid2X2, ImagePlus, Layers, Maximize, MonitorPlay, MousePointer2, PanelLeftClose, PanelRightClose, Play, Plus, Redo2, Save, Shapes, Square, StickyNote, Trash2, Type, Undo2, Video, X, ZoomIn, ZoomOut, Triangle, Sparkles, MoveRight, BarChart3, Palette, Network, AlignLeft, AlignCenter, AlignRight, ArrowLeftRight, ArrowUpDown, Pencil, Folder, Magnet } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useDeck, currentSlide, findSlide, startAutosave, saveNow } from "@/lib/prism/store";
@@ -202,8 +202,8 @@ export default function Studio({ slideIndex, step, print, presenterMode = false,
   const st = useDeck(), prefs = usePrefs(), slide = currentSlide(st);
   const [tab, setTab] = useState<RibbonTab>("home"), [mode, setMode] = useState("Properties"), [grid, setGrid] = useState(false), [notes, setNotes] = useState(true);
   const [presenting, setPresenting] = useState(presenterMode), [previewKey, setPreviewKey] = useState(0), [zoom, setZoom] = useState(1), [projectsOpen, setProjectsOpen] = useState(false);
-  const [presentMenuOpen, setPresentMenuOpen] = useState(false);
-  const presentMenuRef = useRef<HTMLDivElement>(null);
+  const [presentMenuOpen, setPresentMenuOpen] = useState(false), [snapSettingsOpen, setSnapSettingsOpen] = useState(false);
+  const presentMenuRef = useRef<HTMLDivElement>(null), snapSettingsRef = useRef<HTMLDivElement>(null);
   const [masterDialogOpen, setMasterDialogOpen] = useState(false), [diagramBuilderOpen, setDiagramBuilderOpen] = useState(false);
   const [slideMenu, setSlideMenu] = useState<{ x: number; y: number; slideId: string } | null>(null);
   const [morphFrom, setMorphFrom] = useState<typeof slide | undefined>();
@@ -446,6 +446,19 @@ export default function Studio({ slideIndex, step, print, presenterMode = false,
     toast.success("Transition settings applied to all slides.");
   };
   useEffect(() => {
+    if (!snapSettingsOpen) return;
+    const close = (event: PointerEvent) => {
+      if (!snapSettingsRef.current?.contains(event.target as Node)) setSnapSettingsOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setSnapSettingsOpen(false); };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [snapSettingsOpen]);
+  useEffect(() => {
     if (!presentMenuOpen) return;
     const close = (event: PointerEvent) => {
       if (!presentMenuRef.current?.contains(event.target as Node)) setPresentMenuOpen(false);
@@ -658,7 +671,23 @@ export default function Studio({ slideIndex, step, print, presenterMode = false,
       </main>
       {prefs.showInspector && <Inspector mode={mode} onMode={setMode} />}
     </div>
-    <footer className="studio-status"><div className="flex items-center gap-4"><span>Slide {index + 1} of {st.deck.slides.length}</span><span className="status-muted">{selected ? `${st.selectedElementIds.length} object selected` : "No selection"}</span></div><div className="status-controls"><Button title="Toggle notes" size="icon" variant="ghost" onClick={() => setNotes(n => !n)}><StickyNote /></Button><Button title="Normal view" size="icon" variant="ghost" className={!grid ? "text-primary" : ""} onClick={() => setGrid(false)}><MonitorPlay /></Button><Button title="Slide sorter" size="icon" variant="ghost" className={grid ? "text-primary" : ""} onClick={() => setGrid(true)}><Grid2X2 /></Button><span className="status-divider" /><Button title="Zoom out" size="icon" variant="ghost" onClick={() => setZoom(z => Math.max(0.5, z - 0.1))}><ZoomOut /></Button><input type="range" aria-label="Canvas zoom" min="0.5" max="1.5" step="0.1" value={zoom} onChange={e => setZoom(Number(e.target.value))} /><span className="zoom-value">{Math.round(zoom * 100)}%</span><Button title="Zoom in" size="icon" variant="ghost" onClick={() => setZoom(z => Math.min(1.5, z + 0.1))}><ZoomIn /></Button><Button title="Fit canvas" size="icon" variant="ghost" onClick={() => setZoom(1)}><Maximize /></Button></div></footer>
+    <footer className="studio-status"><div className="flex items-center gap-4"><span>Slide {index + 1} of {st.deck.slides.length}</span><span className="status-muted">{selected ? `${st.selectedElementIds.length} object selected` : "No selection"}</span></div><div className="status-controls"><Button title="Toggle notes" size="icon" variant="ghost" onClick={() => setNotes(n => !n)}><StickyNote /></Button><Button title="Normal view" size="icon" variant="ghost" className={!grid ? "text-primary" : ""} onClick={() => setGrid(false)}><MonitorPlay /></Button><Button title="Slide sorter" size="icon" variant="ghost" className={grid ? "text-primary" : ""} onClick={() => setGrid(true)}><Grid2X2 /></Button><span className="status-divider" />
+        <div className="snap-settings-wrap" ref={snapSettingsRef}>
+          <Button title="Snapping, magnetism and movement tracking" size="sm" variant="ghost" className={`snap-settings-trigger ${snapSettingsOpen ? "active" : ""}`} aria-haspopup="dialog" aria-expanded={snapSettingsOpen} onClick={() => setSnapSettingsOpen(open => !open)}><Magnet size={14} /><span>Snap & track</span><ChevronDown size={12} /></Button>
+          {snapSettingsOpen && <div className="snap-settings-popover" role="dialog" aria-label="Snapping and movement tracking settings">
+            <div className="snap-settings-heading"><strong>Snapping & magnetism</strong><span>Slide object placement</span></div>
+            <label className="snap-option"><input type="checkbox" checked={prefs.snap} onChange={event => prefs.set({ snap: event.target.checked })} /><span><strong>Object alignment snap</strong><small>Align edges, centres and slide boundaries</small></span></label>
+            <label className="snap-option"><input type="checkbox" checked={prefs.magnetism} onChange={event => prefs.set({ magnetism: event.target.checked })} /><span><strong>Magnetic pull</strong><small>Increase the attraction range of nearby guides</small></span></label>
+            <label className="snap-option"><input type="checkbox" checked={prefs.gridSnap} onChange={event => prefs.set({ gridSnap: event.target.checked })} /><span><strong>Snap to grid</strong><small>Move objects in fixed grid increments</small></span></label>
+            <label className="snap-option"><input type="checkbox" checked={prefs.showGuides} onChange={event => prefs.set({ showGuides: event.target.checked })} /><span><strong>Show alignment guides</strong><small>Display guide lines while dragging</small></span></label>
+            <label className="snap-setting-select"><span>Grid spacing</span><select value={prefs.gridSize} onChange={event => prefs.set({ gridSize: Number(event.target.value) })}><option value={10}>10 px</option><option value={20}>20 px</option><option value={40}>40 px</option><option value={80}>80 px</option></select></label>
+            <div className="snap-settings-separator" />
+            <label className="snap-option"><input type="checkbox" checked={prefs.polarTracking} onChange={event => prefs.set({ polarTracking: event.target.checked })} /><span><strong>Polar tracking</strong><small>Constrain movement to precise angle increments</small></span></label>
+            <label className="snap-setting-select"><span>Polar angle</span><select value={prefs.polarIncrement} disabled={!prefs.polarTracking} onChange={event => prefs.set({ polarIncrement: Number(event.target.value) })}><option value={5}>5°</option><option value={10}>10°</option><option value={15}>15°</option><option value={30}>30°</option><option value={45}>45°</option><option value={90}>90°</option></select></label>
+            <div className="snap-settings-hint"><kbd>Shift</kbd><span>Hold while dragging to lock movement horizontally or vertically (Ortho).</span></div>
+          </div>}
+        </div>
+        <Button title="Zoom out" size="icon" variant="ghost" onClick={() => setZoom(z => Math.max(0.5, z - 0.1))}><ZoomOut /></Button><input type="range" aria-label="Canvas zoom" min="0.5" max="1.5" step="0.1" value={zoom} onChange={e => setZoom(Number(e.target.value))} /><span className="zoom-value">{Math.round(zoom * 100)}%</span><Button title="Zoom in" size="icon" variant="ghost" onClick={() => setZoom(z => Math.min(1.5, z + 0.1))}><ZoomIn /></Button><Button title="Fit canvas" size="icon" variant="ghost" onClick={() => setZoom(1)}><Maximize /></Button></div></footer>
     </>}
     {slideMenu && <div className="slide-context-menu" role="menu" style={{ left: slideMenu.x, top: slideMenu.y }}><div className="slide-context-title">Slide actions</div><Button size="sm" variant="ghost" role="menuitem" onClick={() => addAfterContextSlide(slideMenu.slideId)}><Plus /> Add slide after</Button><Button size="sm" variant="ghost" role="menuitem" onClick={() => duplicateContextSlide(slideMenu.slideId)}><Copy /> Duplicate slide</Button><Button size="sm" variant="ghost" role="menuitem" onClick={() => deleteContextSlide(slideMenu.slideId)}><Trash2 /> Delete slide</Button></div>}
     {projectsOpen && <div className="dialog-backdrop" onClick={() => setProjectsOpen(false)}><div className="project-dialog" role="dialog" aria-label="Projects" onClick={e => e.stopPropagation()}><div className="flex items-center justify-between"><h2 className="font-display text-xl">Your workspace</h2><Button title="Close projects" size="icon" variant="ghost" onClick={() => setProjectsOpen(false)}><X /></Button></div><div className="my-5 flex flex-wrap gap-2"><Button size="sm" onClick={() => { st.loadDeck(makeDeck("Untitled deck", [makeSlide()])); setProjectsOpen(false); go(0); }}><Plus />Blank deck</Button><Button variant="outline" size="sm" onClick={() => { st.loadDeck(makeDemoDeck()); setProjectsOpen(false); go(0); }}>Open demo</Button><Button variant="outline" size="sm" onClick={exportDeck}><Download />Export project</Button><Button variant="outline" size="sm" onClick={() => { const url = new URL(window.location.href); url.searchParams.set("print", "true"); window.open(url, "_blank"); toast("Choose Save as PDF in the print dialog"); }}>Export PDF</Button></div><h3 className="section-label mb-3">Recent decks</h3>{listProjects().map(p => <Button key={p.id} variant="ghost" className="recent-project" onClick={() => { const d = readProject(p.id); if (d) { st.loadDeck(d); setProjectsOpen(false); go(0); } }}><span>{p.name}</span><span className="text-xs text-muted-foreground">{p.slides} slides</span></Button>)}</div></div>}
