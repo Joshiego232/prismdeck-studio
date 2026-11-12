@@ -136,7 +136,7 @@ export function animFrames(a: Pick<Animation, "effect" | "direction"> & Partial<
     case "wobble": return [0, -8, 6, -4, 2, 0].map((d) => ({ transform: `rotate(${baseRot + d}deg)` }));
     case "float": return [{ transform: `translateY(0) ${r}` }, { transform: `translateY(-28px) ${r}` }, { transform: `translateY(0) ${r}` }];
     case "heartbeat": return [{ transform: `scale(1) ${r}` }, { transform: `scale(1.12) ${r}`, offset: 0.18 }, { transform: `scale(1) ${r}`, offset: 0.36 }, { transform: `scale(1.16) ${r}`, offset: 0.54 }, { transform: `scale(1) ${r}` }];
-    case "rubberBand": return [{ transform: `scale3d(1,1,1) ${r}` }, { transform: `scale3d(1.22,.78,1) ${r}`, offset: 0.3 }, { transform: `scale3d(.82,1.18,1) ${r}`, offset: 0.5 }, { transform: `scale3d(1.08,.92,1) ${r}`, offset: 0.7 }, { transform: `scale3d(1,1,1) ${r}` }];
+    case "rubberBand": return [{ transform: `scale3d(1,1,1) ${r}` }, { transform: `scale3d(1.12,1.12,1) ${r}`, offset: 0.3 }, { transform: `scale3d(.96,.96,1) ${r}`, offset: 0.5 }, { transform: `scale3d(1.06,1.06,1) ${r}`, offset: 0.7 }, { transform: `scale3d(1,1,1) ${r}` }];
     case "swing": return [0, 12, -8, 5, -3, 0].map((d) => ({ transform: `rotate(${baseRot + d}deg)` }));
     case "rollIn": return [{ opacity: 0, transform: `translateX(-180px) rotate(-120deg) ${r}` }, { opacity: 1, transform: `translateX(0) rotate(0deg) ${r}` }];
     case "rollOut": return [{ opacity: 1, transform: `translateX(0) rotate(0deg) ${r}` }, { opacity: 0, transform: `translateX(180px) rotate(120deg) ${r}` }];
